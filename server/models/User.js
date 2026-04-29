@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     bio: String,
     sleepSchedule: {
       type: String,
-      enum: ['early bird', 'night owl']
+      enum: ['early bird', 'night owl', 'flexible']
     },
     studyHabits: {
       type: String,

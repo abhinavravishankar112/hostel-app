@@ -141,3 +141,16 @@ exports.getIncomingRequests = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+exports.getSentRequests = async (req, res) => {
+  try {
+    const requests = await MatchRequest.find({
+      from: req.user.id,
+      status: 'pending'
+    }).populate('to', '-password');
+    res.json(requests);
+
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};

@@ -6,7 +6,8 @@ const {
   acceptRequest,
   rejectRequest,
   cancelRequest,
-  getIncomingRequests
+  getIncomingRequests,
+  getSentRequests
 } = require('../controllers/matchController');
 
 router.post('/request/:id', auth, sendRequest);
@@ -14,5 +15,6 @@ router.put('/accept/:id', auth, acceptRequest);
 router.put('/reject/:id', auth, rejectRequest);
 router.delete('/cancel/:id', auth, cancelRequest);
 router.get('/requests', auth, getIncomingRequests);
+router.get('/sent', auth, getSentRequests);
 
 module.exports = router;
