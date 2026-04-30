@@ -194,6 +194,38 @@ export default function Browse() {
               onMouseLeave={e => e.currentTarget.style.background = 'var(--bg)'}
             >
               <div style={{
+                width: '48px',
+                height: '48px',
+                border: '1px solid var(--border)',
+                overflow: 'hidden',
+                marginBottom: '16px',
+                background: 'var(--bg-secondary)',
+                flexShrink: 0
+              }}>
+                {member.profile?.profilePic ? (
+                  <img
+                    src={member.profile.profilePic}
+                    alt={member.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    fontSize: '18px',
+                    color: 'var(--text-muted)'
+                  }}>
+                    {member.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',

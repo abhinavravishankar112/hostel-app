@@ -165,7 +165,38 @@ export default function Profile() {
           marginBottom: '48px'
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '8px' }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                border: '1px solid var(--border)',
+                overflow: 'hidden',
+                flexShrink: 0,
+                background: 'var(--bg-secondary)'
+              }}>
+                {member.profile?.profilePic ? (
+                  <img
+                    src={member.profile.profilePic}
+                    alt={member.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    color: 'var(--text-muted)'
+                  }}>
+                    {member?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
               <h1 style={{
                 fontFamily: 'var(--font-display)',
                 fontSize: '48px',

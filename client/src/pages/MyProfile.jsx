@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
+import ImageUpload from '../components/ImageUpload'
 
 export default function MyProfile() {
   const { token } = useAuth()
@@ -21,7 +22,8 @@ export default function MyProfile() {
     studyHabits: '',
     socialStyle: '',
     hobbies: '',
-    instagram: ''
+    instagram: '',
+    profilePic: ''
   })
 
   const headers = useMemo(() => ({
@@ -43,7 +45,8 @@ export default function MyProfile() {
           studyHabits: p.studyHabits || '',
           socialStyle: p.socialStyle || '',
           hobbies: p.hobbies?.join(', ') || '',
-          instagram: p.instagram || ''
+          instagram: p.instagram || '',
+          profilePic: p.profilePic || ''
         })
       } catch {
         setError('Failed to load profile')
@@ -73,7 +76,8 @@ export default function MyProfile() {
             year: form.year ? Number(form.year) : undefined,
             hobbies: form.hobbies
               ? form.hobbies.split(',').map(h => h.trim()).filter(Boolean)
-              : []
+              : [],
+            profilePic: form.profilePic || undefined
           }
         },
         { headers }
@@ -111,15 +115,48 @@ export default function MyProfile() {
             <span className="tag tag-accent" style={{ marginBottom: '12px', display: 'inline-block' }}>
               {user?.hostel}
             </span>
-            <h1 style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '48px',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              lineHeight: 1
-            }}>
-              {user?.name}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '8px' }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                border: '1px solid var(--border)',
+                overflow: 'hidden',
+                flexShrink: 0,
+                background: 'var(--bg-secondary)'
+              }}>
+                {user?.profile?.profilePic ? (
+                  <img
+                    src={user.profile.profilePic}
+                    alt={user.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    color: 'var(--text-muted)'
+                  }}>
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <h1 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '48px',
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                lineHeight: 1
+              }}>
+                {user?.name}
+              </h1>
+            </div>
             <p style={{
               color: 'var(--text-muted)',
               fontSize: '12px',
@@ -252,6 +289,14 @@ export default function MyProfile() {
             gridTemplateColumns: '1fr 1fr',
             gap: '24px'
           }}>
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label>Profile Photo</label>
+              <ImageUpload
+                currentPic={form.profilePic}
+                onUpload={(url) => setForm({ ...form, profilePic: url })}
+              />
+            </div>
+
             <div className="form-group">
               <label>Course</label>
               <input name="course" value={form.course} onChange={handleChange} placeholder="e.g. Computer Science" />
