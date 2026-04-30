@@ -1,60 +1,72 @@
-import { Link, Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import './Landing.css';
+import { useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Landing() {
-  const { token, loading } = useAuth();
+  const { token } = useAuth()
+  const navigate = useNavigate()
 
-  if (loading) {
-    return (
-      <div className="loading-screen">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
-
-  if (token) {
-    return <Navigate to="/browse" replace />;
-  }
+  useEffect(() => {
+    if (token) navigate('/browse')
+  }, [token])
 
   return (
-    <div className="landing">
-      <div className="landing-content">
-        <div className="landing-icon">🏠</div>
-        <h1 className="landing-title">Find Your Perfect Roommate</h1>
-        <p className="landing-subtitle">
-          Browse profiles of students in your hostel, discover compatible roommates,
-          and connect before move-in day. Making hostel life better, one match at a time.
-        </p>
-        <div className="landing-actions">
-          <Link to="/login" className="btn btn-primary">Login</Link>
-          <Link to="/register" className="btn btn-ghost">Create Account</Link>
-        </div>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      padding: '0 40px',
+      maxWidth: '800px',
+      margin: '0 auto'
+    }}>
+      <div style={{ marginBottom: '12px' }}>
+        <span className="tag tag-accent">HOR 21A</span>
+      </div>
 
-        <div className="landing-features">
-          <div className="landing-feature">
-            <div className="landing-feature-icon">👤</div>
-            <div className="landing-feature-title">Detailed Profiles</div>
-            <div className="landing-feature-desc">
-              Sleep schedule, study habits, hobbies — know your future roommate before you meet.
-            </div>
-          </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">🔍</div>
-            <div className="landing-feature-title">Browse Your Hostel</div>
-            <div className="landing-feature-desc">
-              See everyone assigned to your hostel and find someone who matches your lifestyle.
-            </div>
-          </div>
-          <div className="landing-feature">
-            <div className="landing-feature-icon">💬</div>
-            <div className="landing-feature-title">Send Requests</div>
-            <div className="landing-feature-desc">
-              Found someone compatible? Send them a roommate request and get matched instantly.
-            </div>
-          </div>
-        </div>
+      <h1 style={{
+        fontFamily: 'var(--font-display)',
+        fontSize: 'clamp(48px, 8vw, 96px)',
+        fontWeight: 800,
+        lineHeight: 0.95,
+        letterSpacing: '-0.03em',
+        marginBottom: '32px'
+      }}>
+        Find your<br />
+        <span style={{ color: 'var(--accent)' }}>roommate.</span>
+      </h1>
+
+      <p style={{
+        color: 'var(--text-muted)',
+        fontSize: '15px',
+        lineHeight: 1.7,
+        maxWidth: '420px',
+        marginBottom: '48px'
+      }}>
+        Browse profiles of students assigned to your hostel.
+        Send a request. Get matched before move-in day.
+      </p>
+
+      <div style={{ display: 'flex', gap: '16px' }}>
+        <Link to="/register">
+          <button className="btn-primary">Register</button>
+        </Link>
+        <Link to="/login">
+          <button className="btn-ghost">Login</button>
+        </Link>
+      </div>
+
+      <div style={{
+        position: 'fixed',
+        bottom: '32px',
+        right: '40px',
+        color: 'var(--text-muted)',
+        fontSize: '11px',
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase'
+      }}>
+        University Hostel Matching
       </div>
     </div>
-  );
+  )
 }
