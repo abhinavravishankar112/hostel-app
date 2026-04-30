@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Landing from './pages/Landing'
 import Register from './pages/Register'
 import Login from './pages/Login'
+import Browse from './pages/Browse'
 
 function App() {
   return (
@@ -12,7 +13,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/browse" element={
-          <ProtectedRoute><div>Browse</div></ProtectedRoute>
+          <ProtectedRoute><Browse /></ProtectedRoute>
         } />
         <Route path="/profile/:id" element={
           <ProtectedRoute><div>Profile</div></ProtectedRoute>

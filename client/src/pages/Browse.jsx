@@ -1,157 +1,264 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import API from '../api/axios';
-import Navbar from '../components/Navbar';
-import StudentCard from '../components/StudentCard';
-import './Browse.css';
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
+import Navbar from '../components/Navbar'
 
 export default function Browse() {
-  const { user } = useAuth();
-  const [students, setStudents] = useState([]);
-  const [incoming, setIncoming] = useState([]);
-  const [sent, setSent] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [actionLoading, setActionLoading] = useState(null);
+  const { token, user } = useAuth()
+  const navigate = useNavigate()
 
-  const fetchData = async () => {
-    try {
-      const [hostelRes, incomingRes, sentRes] = await Promise.all([
-        API.get('/api/users/hostel'),
-        API.get('/api/matches/requests'),
-        API.get('/api/matches/sent'),
-      ]);
-      setStudents(hostelRes.data);
-      setIncoming(incomingRes.data);
-      setSent(sentRes.data);
-    } catch (err) {
-      console.error('Failed to fetch browse data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [members, setMembers] = useState([])
+  const [requests, setRequests] = useState([])
+  const [sentRequests, setSentRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const headers = useMemo(() => ({
+    Authorization: `Bearer ${token}`
+  }), [token])
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const getButtonState = (student) => {
-    if (student._id === user?.id) return 'self';
-
-    // Check if anyone (including this student) has an accepted match
-    // We check sent and incoming for accepted status
-    const hasAcceptedMatch = [...sent, ...incoming].some(
-      (r) =>
-        r.status === 'accepted' &&
-        (
-          (r.from?._id || r.from) === student._id ||
-          (r.to?._id || r.to) === student._id
-        )
-    );
-    if (hasAcceptedMatch) return 'matched';
-
-    // Check if the current user sent a request to this student
-    const sentToStudent = sent.find(
-      (r) => (r.to?._id || r.to) === student._id && r.status === 'pending'
-    );
-    if (sentToStudent) return 'sent';
-
-    // Check if this student sent a request to the current user
-    const incomingFromStudent = incoming.find(
-      (r) => (r.from?._id || r.from) === student._id && r.status === 'pending'
-    );
-    if (incomingFromStudent) return 'accept';
-
-    return 'send';
-  };
-
-  const handleAction = async (studentId) => {
-    setActionLoading(studentId);
-    try {
-      // Determine action based on current button state
-      const studentState = getButtonState({ _id: studentId });
-
-      if (studentState === 'send') {
-        await API.post(`/api/matches/request/${studentId}`);
-      } else if (studentState === 'accept') {
-        const request = incoming.find(
-          (r) => (r.from?._id || r.from) === studentId && r.status === 'pending'
-        );
-        if (request) {
-          await API.put(`/api/matches/accept/${request._id}`);
-        }
+    const fetchData = async () => {
+      try {
+        const [membersRes, incomingRes, sentRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_URL}/api/users/hostel`, { headers }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/matches/requests`, { headers }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/matches/sent`, { headers }),
+        ])
+        setMembers(membersRes.data)
+        setRequests(incomingRes.data)
+        setSentRequests(sentRes.data)
+      } catch {
+        setError('Failed to load members')
+      } finally {
+        setLoading(false)
       }
-
-      // Refresh data
-      await fetchData();
-    } catch (err) {
-      console.error('Action failed:', err);
-    } finally {
-      setActionLoading(null);
     }
-  };
+    fetchData()
+  }, [headers])
 
-  const filteredStudents = students.filter((s) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const profile = s.profile || {};
-    return (
-      s.name?.toLowerCase().includes(q) ||
-      profile.course?.toLowerCase().includes(q) ||
-      profile.hobbies?.some((h) => h.toLowerCase().includes(q))
-    );
-  });
+  const sendRequest = async (userId) => {
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/matches/request/${userId}`,
+        {},
+        { headers }
+      )
+      setSentRequests([...sentRequests, res.data])
+    } catch (err) {
+      alert(err.response?.data?.message || 'Something went wrong')
+    }
+  }
+
+  const acceptRequest = async (requestId) => {
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/matches/accept/${requestId}`,
+        {},
+        { headers }
+      )
+      setRequests(requests.map(r =>
+        r._id === requestId ? { ...r, status: 'accepted' } : r
+      ))
+    } catch (err) {
+      alert(err.response?.data?.message || 'Something went wrong')
+    }
+  }
+
+  const getButtonState = (member) => {
+    if (member._id === user.id) return { type: 'self' }
+
+    const incoming = requests.find(
+      r => r.from._id === member._id && r.status === 'pending'
+    )
+    if (incoming) return { type: 'incoming', requestId: incoming._id }
+
+    const matched = requests.find(
+      r => (r.from._id === member._id || r.to === member._id) && r.status === 'accepted'
+    )
+    if (matched) return { type: 'matched' }
+
+    const sent = sentRequests.find(
+      r => r.to === member._id && r.status === 'pending'
+    )
+    if (sent) return { type: 'sent' }
+
+    const memberMatched = sentRequests.find(
+      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
+    )
+    if (memberMatched) return { type: 'taken' }
+
+    return { type: 'available' }
+  }
+
+  const renderButton = (member) => {
+    const state = getButtonState(member)
+
+    switch (state.type) {
+      case 'self':
+        return null
+      case 'incoming':
+        return (
+          <button
+            className="btn-primary"
+            onClick={(e) => { e.stopPropagation(); acceptRequest(state.requestId) }}
+          >
+            Accept Request
+          </button>
+        )
+      case 'matched':
+        return <button className="btn-disabled">Matched</button>
+      case 'sent':
+        return <button className="btn-disabled">Request Sent</button>
+      case 'taken':
+        return <button className="btn-disabled">Already Matched</button>
+      case 'available':
+        return (
+          <button
+            className="btn-ghost"
+            onClick={(e) => { e.stopPropagation(); sendRequest(member._id) }}
+          >
+            Send Request
+          </button>
+        )
+      default:
+        return null
+    }
+  }
+
+  if (loading) return (
+    <>
+      <Navbar />
+      <div className="page" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+    </>
+  )
+
+  if (error) return (
+    <>
+      <Navbar />
+      <div className="page" style={{ color: 'var(--danger)' }}>{error}</div>
+    </>
+  )
 
   return (
     <>
       <Navbar />
-      <div className="page-container">
-        <div className="browse-header">
-          <div className="browse-header-left">
-            <h1 className="page-title">Browse Hostel</h1>
-            <p className="page-subtitle">Find students in your hostel and send roommate requests</p>
+      <div className="page">
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: '48px'
+        }}>
+          <div>
+            <span className="tag tag-accent" style={{ marginBottom: '12px', display: 'inline-block' }}>
+              HOR 21A
+            </span>
+            <h1 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '40px',
+              fontWeight: 800,
+              letterSpacing: '-0.02em',
+              lineHeight: 1
+            }}>
+              All Members
+            </h1>
           </div>
-          <div className="browse-search">
-            <span className="browse-search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search by name, course, hobby..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+            {members.length} student{members.length !== 1 ? 's' : ''}
+          </p>
         </div>
 
-        {loading ? (
-          <div className="browse-loading">
-            <div className="spinner"></div>
-          </div>
-        ) : (
-          <>
-            <div className="browse-count">
-              {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} in your hostel
+        <hr className="divider" />
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '1px',
+          background: 'var(--border)',
+          border: '1px solid var(--border)'
+        }}>
+          {members.map(member => (
+            <div
+              key={member._id}
+              onClick={() => navigate(`/profile/${member._id}`)}
+              style={{
+                background: 'var(--bg)',
+                padding: '28px',
+                cursor: 'pointer',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg)'}
+            >
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '8px'
+              }}>
+                <h3 style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  letterSpacing: '-0.01em'
+                }}>
+                  {member.name}
+                </h3>
+                {member.profile?.year && (
+                  <span style={{
+                    fontSize: '11px',
+                    color: 'var(--text-muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em'
+                  }}>
+                    Y{member.profile.year}
+                  </span>
+                )}
+              </div>
+
+              {member.profile?.course && (
+                <p style={{
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em'
+                }}>
+                  {member.profile.course}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '20px' }}>
+                {member.profile?.sleepSchedule && (
+                  <span className="tag">{member.profile.sleepSchedule}</span>
+                )}
+                {member.profile?.socialStyle && (
+                  <span className="tag">{member.profile.socialStyle}</span>
+                )}
+                {member.profile?.studyHabits && (
+                  <span className="tag">{member.profile.studyHabits}</span>
+                )}
+              </div>
+
+              {member.profile?.hobbies?.length > 0 && (
+                <p style={{
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  marginBottom: '20px'
+                }}>
+                  {member.profile.hobbies.slice(0, 3).join(', ')}
+                </p>
+              )}
+
+              <div onClick={e => e.stopPropagation()}>
+                {renderButton(member)}
+              </div>
             </div>
-            {filteredStudents.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state-icon">🏘️</div>
-                <div className="empty-state-text">No students found</div>
-                <div className="empty-state-sub">Try adjusting your search</div>
-              </div>
-            ) : (
-              <div className="browse-grid">
-                {filteredStudents.map((student) => (
-                  <StudentCard
-                    key={student._id}
-                    student={student}
-                    buttonState={getButtonState(student)}
-                    onAction={handleAction}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+          ))}
+        </div>
       </div>
     </>
-  );
+  )
 }

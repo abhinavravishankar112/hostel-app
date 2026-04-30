@@ -144,13 +144,9 @@ exports.getIncomingRequests = async (req, res) => {
 
 exports.getSentRequests = async (req, res) => {
   try {
-    const requests = await MatchRequest.find({
-      from: req.user.id,
-      status: 'pending'
-    }).populate('to', '-password');
-    res.json(requests);
-
+    const requests = await MatchRequest.find({ from: req.user.id })
+    res.json(requests)
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: 'Server error', error: err.message })
   }
-};
+}
