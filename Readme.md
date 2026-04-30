@@ -74,11 +74,10 @@ cd hostel-app
 ### Backend Setup
 
 ```bash
-cd server
 npm install
 ```
 
-Create a `.env` file in the `server` folder:
+Create a `.env` file in the root folder:
 
 ```env
 PORT=5001
@@ -119,7 +118,7 @@ Client will start at `http://localhost:5173`
 
 ## Environment Variables
 
-### Server (`/server/.env`)
+### Server (`.env` in root)
 
 | Variable | Description |
 |---|---|
@@ -131,7 +130,7 @@ Client will start at `http://localhost:5173`
 
 | Variable | Description |
 |---|---|
-| `VITE_API_URL` | Base URL of the backend API |
+| `VITE_API_URL` | Base URL of the backend API (use `https://hostel-app-server.onrender.com` for production or `http://localhost:5001` for local dev) |
 
 ---
 
@@ -159,6 +158,7 @@ Client will start at `http://localhost:5173`
 | PUT | `/api/matches/reject/:id` | Reject a roommate request | ✅ |
 | DELETE | `/api/matches/cancel/:id` | Cancel a request you sent | ✅ |
 | GET | `/api/matches/requests` | View all incoming requests | ✅ |
+| GET | `/api/matches/sent` | View all sent pending requests | ✅ |
 
 ---
 
@@ -186,12 +186,27 @@ hostel-app/
 └── client/
     └── src/
         ├── api/
+        │   └── axios.js
         ├── components/
+        │   ├── Navbar.jsx
+        │   ├── Navbar.css
+        │   ├── ProtectedRoute.jsx
+        │   ├── StudentCard.jsx
+        │   └── StudentCard.css
         ├── context/
         │   └── AuthContext.jsx
         ├── pages/
+        │   ├── Landing.jsx / Landing.css
+        │   ├── Login.jsx / Auth.css
+        │   ├── Register.jsx
+        │   ├── Browse.jsx / Browse.css
+        │   ├── Profile.jsx / Profile.css
+        │   ├── MyProfile.jsx / MyProfile.css
+        │   └── Requests.jsx / Requests.css
         ├── App.jsx
-        └── main.jsx
+        ├── App.css
+        ├── main.jsx
+        └── index.css
 ```
 
 ---
@@ -202,7 +217,7 @@ hostel-app/
 - [ ] In-app messaging between matched students
 - [ ] Add more hostels within the university
 - [ ] Notifications for incoming requests
-- [ ] Mobile responsive design improvements
+- [x] Mobile responsive design
 
 ---
 
