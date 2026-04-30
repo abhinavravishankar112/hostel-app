@@ -1,219 +1,315 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import API from '../api/axios';
-import Navbar from '../components/Navbar';
-import './Profile.css';
+import { useState, useEffect, useMemo } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
+import Navbar from '../components/Navbar'
 
 export default function Profile() {
-  const { id } = useParams();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [buttonState, setButtonState] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [incoming, setIncoming] = useState([]);
-  const [sent, setSent] = useState([]);
+  const { id } = useParams()
+  const { token, user } = useAuth()
+  const navigate = useNavigate()
+
+  const [member, setMember] = useState(null)
+  const [requests, setRequests] = useState([])
+  const [sentRequests, setSentRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const headers = useMemo(() => ({
+    Authorization: `Bearer ${token}`
+  }), [token])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, incomingRes, sentRes] = await Promise.all([
-          API.get(`/api/users/${id}`),
-          API.get('/api/matches/requests'),
-          API.get('/api/matches/sent'),
-        ]);
-        setProfile(userRes.data);
-        setIncoming(incomingRes.data);
-        setSent(sentRes.data);
-
-        // Compute button state
-        const studentId = userRes.data._id;
-        if (studentId === user?.id) {
-          setButtonState('self');
-        } else {
-          const hasAccepted = [...sentRes.data, ...incomingRes.data].some(
-            (r) =>
-              r.status === 'accepted' &&
-              ((r.from?._id || r.from) === studentId || (r.to?._id || r.to) === studentId)
-          );
-          if (hasAccepted) {
-            setButtonState('matched');
-          } else if (
-            sentRes.data.find((r) => (r.to?._id || r.to) === studentId && r.status === 'pending')
-          ) {
-            setButtonState('sent');
-          } else if (
-            incomingRes.data.find((r) => (r.from?._id || r.from) === studentId && r.status === 'pending')
-          ) {
-            setButtonState('accept');
-          } else {
-            setButtonState('send');
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load profile:', err);
+        const [memberRes, incomingRes, sentRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_URL}/api/users/${id}`, { headers }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/matches/requests`, { headers }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/matches/sent`, { headers }),
+        ])
+        setMember(memberRes.data)
+        setRequests(incomingRes.data)
+        setSentRequests(sentRes.data)
+      } catch {
+        setError('Failed to load profile')
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    fetchData();
-  }, [id, user?.id]);
-
-  const handleAction = async () => {
-    setActionLoading(true);
-    try {
-      if (buttonState === 'send') {
-        await API.post(`/api/matches/request/${id}`);
-        setButtonState('sent');
-      } else if (buttonState === 'accept') {
-        const request = incoming.find(
-          (r) => (r.from?._id || r.from) === id && r.status === 'pending'
-        );
-        if (request) {
-          await API.put(`/api/matches/accept/${request._id}`);
-          setButtonState('matched');
-        }
-      }
-    } catch (err) {
-      console.error('Action failed:', err);
-    } finally {
-      setActionLoading(false);
     }
-  };
+    fetchData()
+  }, [id, headers])
 
-  const p = profile?.profile || {};
-  const initials = profile?.name
-    ? profile.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-    : '?';
+  const sendRequest = async () => {
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/matches/request/${id}`,
+        {},
+        { headers }
+      )
+      setSentRequests([...sentRequests, res.data])
+    } catch (err) {
+      alert(err.response?.data?.message || 'Something went wrong')
+    }
+  }
+
+  const acceptRequest = async (requestId) => {
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/matches/accept/${requestId}`,
+        {},
+        { headers }
+      )
+      setRequests(requests.map(r =>
+        r._id === requestId ? { ...r, status: 'accepted' } : r
+      ))
+    } catch (err) {
+      alert(err.response?.data?.message || 'Something went wrong')
+    }
+  }
+
+  const getButtonState = () => {
+    if (!member) return { type: 'self' }
+    if (member._id === user.id) return { type: 'self' }
+
+    const incoming = requests.find(
+      r => r.from._id === member._id && r.status === 'pending'
+    )
+    if (incoming) return { type: 'incoming', requestId: incoming._id }
+
+    const matched = requests.find(
+      r => (r.from._id === member._id || r.to === member._id) && r.status === 'accepted'
+    )
+    if (matched) return { type: 'matched' }
+
+    const sent = sentRequests.find(
+      r => r.to === member._id && r.status === 'pending'
+    )
+    if (sent) return { type: 'sent' }
+
+    const memberMatched = sentRequests.find(
+      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
+    )
+    if (memberMatched) return { type: 'taken' }
+
+    return { type: 'available' }
+  }
 
   const renderButton = () => {
-    switch (buttonState) {
-      case 'send':
+    const state = getButtonState()
+    switch (state.type) {
+      case 'self':
+        return null
+      case 'incoming':
         return (
-          <button className="btn btn-primary" onClick={handleAction} disabled={actionLoading}>
-            {actionLoading ? 'Sending...' : 'Send Request'}
+          <button className="btn-primary" onClick={() => acceptRequest(state.requestId)}>
+            Accept Request
           </button>
-        );
-      case 'sent':
-        return <button className="btn btn-disabled" disabled>Request Sent</button>;
-      case 'accept':
-        return (
-          <button className="btn btn-success" onClick={handleAction} disabled={actionLoading}>
-            {actionLoading ? 'Accepting...' : 'Accept Request'}
-          </button>
-        );
+        )
       case 'matched':
-        return <button className="btn btn-disabled" disabled>Already Matched</button>;
+        return <button className="btn-disabled">Matched</button>
+      case 'sent':
+        return <button className="btn-disabled">Request Sent</button>
+      case 'taken':
+        return <button className="btn-disabled">Already Matched</button>
+      case 'available':
+        return <button className="btn-primary" onClick={sendRequest}>Send Request</button>
       default:
-        return null;
+        return null
     }
-  };
+  }
+
+  if (loading) return (
+    <>
+      <Navbar />
+      <div className="page" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+    </>
+  )
+
+  if (error) return (
+    <>
+      <Navbar />
+      <div className="page" style={{ color: 'var(--danger)' }}>{error}</div>
+    </>
+  )
 
   return (
     <>
       <Navbar />
-      <div className="page-container">
-        <div className="profile-page">
-          <button className="profile-back" onClick={() => navigate('/browse')}>
-            ← Back to Browse
-          </button>
+      <div className="page">
+        {/* Back button */}
+        <button
+          onClick={() => navigate('/browse')}
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '12px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            marginBottom: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'color 0.2s'
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          &larr; Back to Browse
+        </button>
 
-          {loading ? (
-            <div className="profile-loading">
-              <div className="spinner"></div>
+        {/* Top section */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          alignItems: 'flex-start',
+          gap: '40px',
+          marginBottom: '48px'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+              <h1 style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '48px',
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                lineHeight: 1
+              }}>
+                {member.name}
+              </h1>
+              {member.profile?.year && (
+                <span className="tag">Year {member.profile.year}</span>
+              )}
             </div>
-          ) : !profile ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">😕</div>
-              <div className="empty-state-text">Profile not found</div>
+            {member.profile?.course && (
+              <p style={{
+                color: 'var(--text-muted)',
+                fontSize: '13px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em'
+              }}>
+                {member.profile.course}
+              </p>
+            )}
+          </div>
+          <div style={{ paddingTop: '8px' }}>
+            {renderButton()}
+          </div>
+        </div>
+
+        <hr className="divider" />
+
+        {/* Bio */}
+        {member.profile?.bio && (
+          <div style={{ marginBottom: '40px' }}>
+            <p style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: '12px'
+            }}>
+              Bio
+            </p>
+            <p style={{ fontSize: '15px', lineHeight: 1.7, maxWidth: '600px' }}>
+              {member.profile.bio}
+            </p>
+          </div>
+        )}
+
+        {/* Details grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '1px',
+          background: 'var(--border)',
+          border: '1px solid var(--border)',
+          marginBottom: '40px'
+        }}>
+          {member.profile?.sleepSchedule && (
+            <div style={{ background: 'var(--bg)', padding: '20px 24px' }}>
+              <p style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--text-muted)',
+                marginBottom: '6px'
+              }}>
+                Sleep Schedule
+              </p>
+              <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>
+                {member.profile.sleepSchedule}
+              </p>
             </div>
-          ) : (
-            <div className="profile-card glass-card">
-              <div className="profile-top">
-                <div className="profile-avatar">{initials}</div>
-                <div>
-                  <div className="profile-name">{profile.name}</div>
-                  <div className="profile-meta">
-                    {p.course && <span>{p.course}</span>}
-                    {p.course && p.year && <span className="profile-meta-dot"></span>}
-                    {p.year && <span>Year {p.year}</span>}
-                  </div>
-                </div>
-              </div>
-
-              {p.bio && (
-                <div className="profile-section">
-                  <div className="profile-section-title">About</div>
-                  <div className="profile-bio">{p.bio}</div>
-                </div>
-              )}
-
-              <div className="profile-section">
-                <div className="profile-section-title">Lifestyle</div>
-                <div className="profile-details">
-                  {p.sleepSchedule && (
-                    <div className="profile-detail-item">
-                      <div className="profile-detail-label">Sleep Schedule</div>
-                      <div className="profile-detail-value">{p.sleepSchedule}</div>
-                    </div>
-                  )}
-                  {p.studyHabits && (
-                    <div className="profile-detail-item">
-                      <div className="profile-detail-label">Study Habits</div>
-                      <div className="profile-detail-value">{p.studyHabits}</div>
-                    </div>
-                  )}
-                  {p.socialStyle && (
-                    <div className="profile-detail-item">
-                      <div className="profile-detail-label">Social Style</div>
-                      <div className="profile-detail-value">{p.socialStyle}</div>
-                    </div>
-                  )}
-                  {p.age && (
-                    <div className="profile-detail-item">
-                      <div className="profile-detail-label">Age</div>
-                      <div className="profile-detail-value">{p.age}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {p.hobbies && p.hobbies.length > 0 && (
-                <div className="profile-section">
-                  <div className="profile-section-title">Hobbies</div>
-                  <div className="profile-hobbies">
-                    {p.hobbies.map((hobby, i) => (
-                      <span key={i} className="hobby-tag">{hobby}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {p.instagram && (
-                <div className="profile-section">
-                  <div className="profile-section-title">Social</div>
-                  <a
-                    href={`https://instagram.com/${p.instagram.replace('@', '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="profile-instagram"
-                  >
-                    📷 {p.instagram}
-                  </a>
-                </div>
-              )}
-
-              {buttonState && buttonState !== 'self' && (
-                <div className="profile-action">
-                  {renderButton()}
-                </div>
-              )}
+          )}
+          {member.profile?.studyHabits && (
+            <div style={{ background: 'var(--bg)', padding: '20px 24px' }}>
+              <p style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--text-muted)',
+                marginBottom: '6px'
+              }}>
+                Study Habits
+              </p>
+              <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>
+                {member.profile.studyHabits}
+              </p>
+            </div>
+          )}
+          {member.profile?.socialStyle && (
+            <div style={{ background: 'var(--bg)', padding: '20px 24px' }}>
+              <p style={{
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--text-muted)',
+                marginBottom: '6px'
+              }}>
+                Social Style
+              </p>
+              <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>
+                {member.profile.socialStyle}
+              </p>
             </div>
           )}
         </div>
+
+        {/* Hobbies */}
+        {member.profile?.hobbies?.length > 0 && (
+          <div style={{ marginBottom: '40px' }}>
+            <p style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: '12px'
+            }}>
+              Hobbies
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {member.profile.hobbies.map((hobby, i) => (
+                <span key={i} className="tag">{hobby}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Instagram */}
+        {member.profile?.instagram && (
+          <div>
+            <p style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: '12px'
+            }}>
+              Instagram
+            </p>
+            <p style={{ fontSize: '14px' }}>{member.profile.instagram}</p>
+          </div>
+        )}
       </div>
     </>
-  );
+  )
 }

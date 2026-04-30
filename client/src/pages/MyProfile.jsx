@@ -1,120 +1,91 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
 
-export default function Profile() {
-  const { id } = useParams()
-  const { token, user } = useAuth()
-  const navigate = useNavigate()
-
-  const [member, setMember] = useState(null)
-  const [requests, setRequests] = useState([])
-  const [sentRequests, setSentRequests] = useState([])
+export default function MyProfile() {
+  const { token } = useAuth()
+  const [user, setUser] = useState(null)
+  const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const [form, setForm] = useState({
+    age: '',
+    course: '',
+    year: '',
+    bio: '',
+    sleepSchedule: '',
+    studyHabits: '',
+    socialStyle: '',
+    hobbies: '',
+    instagram: ''
+  })
 
   const headers = useMemo(() => ({
     Authorization: `Bearer ${token}`
   }), [token])
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchMe = async () => {
       try {
-        const [memberRes, incomingRes, sentRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/api/users/${id}`, { headers }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/matches/requests`, { headers }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/matches/sent`, { headers }),
-        ])
-        setMember(memberRes.data)
-        setRequests(incomingRes.data)
-        setSentRequests(sentRes.data)
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/users/me`, { headers })
+        setUser(res.data)
+        const p = res.data.profile || {}
+        setForm({
+          age: p.age || '',
+          course: p.course || '',
+          year: p.year || '',
+          bio: p.bio || '',
+          sleepSchedule: p.sleepSchedule || '',
+          studyHabits: p.studyHabits || '',
+          socialStyle: p.socialStyle || '',
+          hobbies: p.hobbies?.join(', ') || '',
+          instagram: p.instagram || ''
+        })
       } catch {
         setError('Failed to load profile')
       } finally {
         setLoading(false)
       }
     }
-    fetchData()
-  }, [id, headers])
+    fetchMe()
+  }, [headers])
 
-  const sendRequest = async () => {
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    setSuccess('')
     try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/matches/request/${id}`,
-        {},
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/users/me`,
+        {
+          profile: {
+            ...form,
+            age: form.age ? Number(form.age) : undefined,
+            year: form.year ? Number(form.year) : undefined,
+            hobbies: form.hobbies
+              ? form.hobbies.split(',').map(h => h.trim()).filter(Boolean)
+              : []
+          }
+        },
         { headers }
       )
-      setSentRequests([...sentRequests, res.data])
-    } catch (err) {
-      alert(err.response?.data?.message || 'Something went wrong')
-    }
-  }
-
-  const acceptRequest = async (requestId) => {
-    try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/matches/accept/${requestId}`,
-        {},
-        { headers }
-      )
-      setRequests(requests.map(r =>
-        r._id === requestId ? { ...r, status: 'accepted' } : r
-      ))
-    } catch (err) {
-      alert(err.response?.data?.message || 'Something went wrong')
-    }
-  }
-
-  const getButtonState = () => {
-    if (!member) return { type: 'self' }
-    if (member._id === user.id) return { type: 'self' }
-
-    const incoming = requests.find(
-      r => r.from._id === member._id && r.status === 'pending'
-    )
-    if (incoming) return { type: 'incoming', requestId: incoming._id }
-
-    const matched = requests.find(
-      r => (r.from._id === member._id || r.to === member._id) && r.status === 'accepted'
-    )
-    if (matched) return { type: 'matched' }
-
-    const sent = sentRequests.find(
-      r => r.to === member._id && r.status === 'pending'
-    )
-    if (sent) return { type: 'sent' }
-
-    const memberMatched = sentRequests.find(
-      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
-    )
-    if (memberMatched) return { type: 'taken' }
-
-    return { type: 'available' }
-  }
-
-  const renderButton = () => {
-    const state = getButtonState()
-    switch (state.type) {
-      case 'self':
-        return null
-      case 'incoming':
-        return (
-          <button className="btn-primary" onClick={() => acceptRequest(state.requestId)}>
-            Accept Request
-          </button>
-        )
-      case 'matched':
-        return <button className="btn-disabled">Matched</button>
-      case 'sent':
-        return <button className="btn-disabled">Request Sent</button>
-      case 'taken':
-        return <button className="btn-disabled">Already Matched</button>
-      case 'available':
-        return <button className="btn-primary" onClick={sendRequest}>Send Request</button>
-      default:
-        return null
+      setUser(res.data)
+      setEditing(false)
+      setSuccess('Profile updated')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch {
+      setError('Failed to save profile')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -125,189 +96,255 @@ export default function Profile() {
     </>
   )
 
-  if (error) return (
-    <>
-      <Navbar />
-      <div className="page" style={{ color: 'var(--danger)' }}>{error}</div>
-    </>
-  )
-
   return (
     <>
       <Navbar />
       <div className="page">
-        {/* Back button */}
-        <button
-          onClick={() => navigate('/browse')}
-          style={{
-            color: 'var(--text-muted)',
-            fontSize: '12px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            marginBottom: '40px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'color 0.2s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
-          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-        >
-          &larr; Back to Browse
-        </button>
-
-        {/* Top section */}
+        {/* Header */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto',
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'flex-start',
-          gap: '40px',
           marginBottom: '48px'
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <h1 style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '48px',
-                fontWeight: 800,
-                letterSpacing: '-0.03em',
-                lineHeight: 1
-              }}>
-                {member.name}
-              </h1>
-              {member.profile?.year && (
-                <span className="tag">Year {member.profile.year}</span>
-              )}
-            </div>
-            {member.profile?.course && (
-              <p style={{
-                color: 'var(--text-muted)',
-                fontSize: '13px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em'
-              }}>
-                {member.profile.course}
-              </p>
-            )}
+            <span className="tag tag-accent" style={{ marginBottom: '12px', display: 'inline-block' }}>
+              {user?.hostel}
+            </span>
+            <h1 style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '48px',
+              fontWeight: 800,
+              letterSpacing: '-0.03em',
+              lineHeight: 1
+            }}>
+              {user?.name}
+            </h1>
+            <p style={{
+              color: 'var(--text-muted)',
+              fontSize: '12px',
+              marginTop: '8px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em'
+            }}>
+              {user?.rollNumber}
+            </p>
           </div>
-          <div style={{ paddingTop: '8px' }}>
-            {renderButton()}
+
+          <div style={{ display: 'flex', gap: '12px', paddingTop: '8px' }}>
+            {!editing ? (
+              <button className="btn-ghost" onClick={() => setEditing(true)}>
+                Edit Profile
+              </button>
+            ) : (
+              <button className="btn-ghost" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+            )}
           </div>
         </div>
 
         <hr className="divider" />
 
-        {/* Bio */}
-        {member.profile?.bio && (
-          <div style={{ marginBottom: '40px' }}>
-            <p style={{
-              fontSize: '11px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--text-muted)',
-              marginBottom: '12px'
-            }}>
-              Bio
-            </p>
-            <p style={{ fontSize: '15px', lineHeight: 1.7, maxWidth: '600px' }}>
-              {member.profile.bio}
-            </p>
-          </div>
+        {error && <p className="error-msg" style={{ marginBottom: '16px' }}>{error}</p>}
+        {success && (
+          <p style={{ color: 'var(--success)', fontSize: '12px', marginBottom: '16px' }}>
+            {success}
+          </p>
         )}
 
-        {/* Details grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '1px',
-          background: 'var(--border)',
-          border: '1px solid var(--border)',
-          marginBottom: '40px'
-        }}>
-          {member.profile?.sleepSchedule && (
-            <div style={{ background: 'var(--bg)', padding: '20px 24px' }}>
-              <p style={{
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--text-muted)',
-                marginBottom: '6px'
-              }}>
-                Sleep Schedule
-              </p>
-              <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>
-                {member.profile.sleepSchedule}
-              </p>
-            </div>
-          )}
-          {member.profile?.studyHabits && (
-            <div style={{ background: 'var(--bg)', padding: '20px 24px' }}>
-              <p style={{
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--text-muted)',
-                marginBottom: '6px'
-              }}>
-                Study Habits
-              </p>
-              <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>
-                {member.profile.studyHabits}
-              </p>
-            </div>
-          )}
-          {member.profile?.socialStyle && (
-            <div style={{ background: 'var(--bg)', padding: '20px 24px' }}>
-              <p style={{
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--text-muted)',
-                marginBottom: '6px'
-              }}>
-                Social Style
-              </p>
-              <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>
-                {member.profile.socialStyle}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Hobbies */}
-        {member.profile?.hobbies?.length > 0 && (
-          <div style={{ marginBottom: '40px' }}>
-            <p style={{
-              fontSize: '11px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--text-muted)',
-              marginBottom: '12px'
-            }}>
-              Hobbies
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {member.profile.hobbies.map((hobby, i) => (
-                <span key={i} className="tag">{hobby}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Instagram */}
-        {member.profile?.instagram && (
+        {!editing ? (
+          /* View mode */
           <div>
-            <p style={{
-              fontSize: '11px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--text-muted)',
-              marginBottom: '12px'
+            {user?.profile?.bio && (
+              <div style={{ marginBottom: '40px' }}>
+                <p style={{
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--text-muted)',
+                  marginBottom: '12px'
+                }}>Bio</p>
+                <p style={{ fontSize: '15px', lineHeight: 1.7, maxWidth: '600px' }}>
+                  {user.profile.bio}
+                </p>
+              </div>
+            )}
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '1px',
+              background: 'var(--border)',
+              border: '1px solid var(--border)',
+              marginBottom: '40px'
             }}>
-              Instagram
-            </p>
-            <p style={{ fontSize: '14px' }}>{member.profile.instagram}</p>
+              {[
+                { label: 'Course', value: user?.profile?.course },
+                { label: 'Year', value: user?.profile?.year ? `Year ${user.profile.year}` : null },
+                { label: 'Age', value: user?.profile?.age },
+                { label: 'Sleep Schedule', value: user?.profile?.sleepSchedule },
+                { label: 'Study Habits', value: user?.profile?.studyHabits },
+                { label: 'Social Style', value: user?.profile?.socialStyle },
+              ].map(({ label, value }) => value ? (
+                <div key={label} style={{ background: 'var(--bg)', padding: '20px 24px' }}>
+                  <p style={{
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: 'var(--text-muted)',
+                    marginBottom: '6px'
+                  }}>{label}</p>
+                  <p style={{ fontSize: '14px', textTransform: 'capitalize' }}>{value}</p>
+                </div>
+              ) : null)}
+            </div>
+
+            {user?.profile?.hobbies?.length > 0 && (
+              <div style={{ marginBottom: '40px' }}>
+                <p style={{
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--text-muted)',
+                  marginBottom: '12px'
+                }}>Hobbies</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {user.profile.hobbies.map((hobby, i) => (
+                    <span key={i} className="tag">{hobby}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {user?.profile?.instagram && (
+              <div>
+                <p style={{
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--text-muted)',
+                  marginBottom: '12px'
+                }}>Instagram</p>
+                <p style={{ fontSize: '14px' }}>{user.profile.instagram}</p>
+              </div>
+            )}
+
+            {!user?.profile?.bio && !user?.profile?.course && (
+              <div style={{
+                border: '1px dashed var(--border)',
+                padding: '40px',
+                textAlign: 'center'
+              }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '16px' }}>
+                  Your profile is empty. Fill it in so others can find you.
+                </p>
+                <button className="btn-primary" onClick={() => setEditing(true)}>
+                  Fill in Profile
+                </button>
+              </div>
+            )}
           </div>
+        ) : (
+          /* Edit mode */
+          <form onSubmit={handleSave} style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '24px'
+          }}>
+            <div className="form-group">
+              <label>Course</label>
+              <input name="course" value={form.course} onChange={handleChange} placeholder="e.g. Computer Science" />
+            </div>
+
+            <div className="form-group">
+              <label>Year</label>
+              <input name="year" type="number" min="1" max="6" value={form.year} onChange={handleChange} placeholder="e.g. 2" />
+            </div>
+
+            <div className="form-group">
+              <label>Age</label>
+              <input name="age" type="number" value={form.age} onChange={handleChange} placeholder="e.g. 20" />
+            </div>
+
+            <div className="form-group">
+              <label>Instagram</label>
+              <input name="instagram" value={form.instagram} onChange={handleChange} placeholder="@handle" />
+            </div>
+
+            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <label>Bio</label>
+              <textarea
+                name="bio"
+                value={form.bio}
+                onChange={handleChange}
+                placeholder="Tell your future roommate about yourself..."
+                rows={4}
+                style={{
+                  resize: 'vertical',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  padding: '10px 14px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '13px',
+                  outline: 'none',
+                  width: '100%'
+                }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Sleep Schedule</label>
+              <select name="sleepSchedule" value={form.sleepSchedule} onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="early bird">Early Bird</option>
+                <option value="night owl">Night Owl</option>
+                <option value="flexible">Flexible</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Study Habits</label>
+              <select name="studyHabits" value={form.studyHabits} onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="quiet studier">Quiet Studier</option>
+                <option value="group studier">Group Studier</option>
+                <option value="flexible">Flexible</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Social Style</label>
+              <select name="socialStyle" value={form.socialStyle} onChange={handleChange}>
+                <option value="">Select...</option>
+                <option value="introverted">Introverted</option>
+                <option value="extroverted">Extroverted</option>
+                <option value="mixed">Mixed</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Hobbies (comma separated)</label>
+              <input
+                name="hobbies"
+                value={form.hobbies}
+                onChange={handleChange}
+                placeholder="coding, gaming, reading"
+              />
+            </div>
+
+            {error && <p className="error-msg" style={{ gridColumn: '1 / -1' }}>{error}</p>}
+
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '12px' }}>
+              <button type="submit" className="btn-primary" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Profile'}
+              </button>
+              <button type="button" className="btn-ghost" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+            </div>
+          </form>
         )}
       </div>
     </>
