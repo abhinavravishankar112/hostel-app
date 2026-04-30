@@ -8,13 +8,52 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const hydrateAuth = async () => {
+      const savedToken = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+
+      const looksLikeJwt = (value) =>
+        typeof value === 'string' && value.split('.').length === 3;
+
+      if (!savedToken || !savedUser) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        if (looksLikeJwt(savedToken)) {
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
+        } else if (looksLikeJwt(savedUser)) {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/me`, {
+            headers: {
+              Authorization: `Bearer ${savedUser}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error('Invalid saved session');
+          }
+
+          const me = await response.json();
+          setToken(savedUser);
+          setUser(me);
+          localStorage.setItem('token', savedUser);
+          localStorage.setItem('user', JSON.stringify(me));
+        } else {
+          throw new Error('Invalid saved session');
+        }
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    hydrateAuth();
   }, []);
 
   const login = (newToken, newUser) => {

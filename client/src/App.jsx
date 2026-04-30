@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Browse from './pages/Browse'
 import Profile from './pages/Profile'
 import MyProfile from './pages/MyProfile'
+import Requests from './pages/Requests'
 
 function App() {
   return (
@@ -24,7 +25,7 @@ function App() {
           <ProtectedRoute><MyProfile /></ProtectedRoute>
         } />
         <Route path="/requests" element={
-          <ProtectedRoute><div>Requests</div></ProtectedRoute>
+          <ProtectedRoute><Requests /></ProtectedRoute>
         } />
       </Routes>
     </BrowserRouter>

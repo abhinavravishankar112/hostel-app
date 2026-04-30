@@ -1,130 +1,260 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import API from '../api/axios';
-import Navbar from '../components/Navbar';
-import './Requests.css';
+import { useState, useEffect, useMemo } from 'react'
+import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
+import Navbar from '../components/Navbar'
 
 export default function Requests() {
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null);
+  const { token } = useAuth()
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const headers = useMemo(() => ({
+    Authorization: `Bearer ${token}`
+  }), [token])
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
-    try {
-      const res = await API.get('/api/matches/requests');
-      setRequests(res.data);
-    } catch (err) {
-      console.error('Failed to fetch requests:', err);
-    } finally {
-      setLoading(false);
+    const fetchRequests = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/matches/requests`,
+          { headers }
+        )
+        setRequests(res.data)
+      } catch (err) {
+        setError('Failed to load requests')
+      } finally {
+        setLoading(false)
+      }
     }
-  };
+    fetchRequests()
+  }, [headers])
 
   const handleAccept = async (requestId) => {
-    setActionLoading(requestId);
     try {
-      await API.put(`/api/matches/accept/${requestId}`);
-      setRequests((prev) => prev.filter((r) => r._id !== requestId));
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/matches/accept/${requestId}`,
+        {},
+        { headers }
+      )
+      setRequests(requests.map(r =>
+        r._id === requestId ? { ...r, status: 'accepted' } : r
+      ))
     } catch (err) {
-      console.error('Accept failed:', err);
-    } finally {
-      setActionLoading(null);
+      alert(err.response?.data?.message || 'Something went wrong')
     }
-  };
+  }
 
   const handleReject = async (requestId) => {
-    setActionLoading(requestId);
     try {
-      await API.put(`/api/matches/reject/${requestId}`);
-      setRequests((prev) => prev.filter((r) => r._id !== requestId));
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/matches/reject/${requestId}`,
+        {},
+        { headers }
+      )
+      setRequests(requests.filter(r => r._id !== requestId))
     } catch (err) {
-      console.error('Reject failed:', err);
-    } finally {
-      setActionLoading(null);
+      alert(err.response?.data?.message || 'Something went wrong')
     }
-  };
+  }
 
-  const getInitials = (name) =>
-    name ? name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) : '?';
+  if (loading) return (
+    <>
+      <Navbar />
+      <div className="page" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+    </>
+  )
+
+  if (error) return (
+    <>
+      <Navbar />
+      <div className="page" style={{ color: 'var(--danger)' }}>{error}</div>
+    </>
+  )
+
+  const pending = requests.filter(r => r.status === 'pending')
+  const accepted = requests.filter(r => r.status === 'accepted')
 
   return (
     <>
       <Navbar />
-      <div className="page-container">
-        <div className="requests-page">
-          <h1 className="page-title">Incoming Requests</h1>
-          <p className="page-subtitle">Students who want to be your roommate</p>
-
-          {loading ? (
-            <div className="browse-loading">
-              <div className="spinner"></div>
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">💌</div>
-              <div className="empty-state-text">No pending requests</div>
-              <div className="empty-state-sub">
-                When someone sends you a roommate request, it will appear here.
-              </div>
-            </div>
-          ) : (
-            <div className="requests-list">
-              {requests.map((req) => {
-                const sender = req.from || {};
-                const p = sender.profile || {};
-                return (
-                  <div key={req._id} className="request-card glass-card">
-                    <div className="request-card-header">
-                      <div className="request-card-avatar">
-                        {getInitials(sender.name)}
-                      </div>
-                      <div className="request-card-info">
-                        <Link to={`/profile/${sender._id}`} className="request-card-name">
-                          {sender.name}
-                        </Link>
-                        <div className="request-card-meta">
-                          {p.course && <span>{p.course}</span>}
-                          {p.course && p.year && <span> · </span>}
-                          {p.year && <span>Year {p.year}</span>}
-                        </div>
-                      </div>
-                    </div>
-
-                    {(p.sleepSchedule || p.socialStyle || p.studyHabits) && (
-                      <div className="request-card-badges">
-                        {p.sleepSchedule && <span className="badge">{p.sleepSchedule}</span>}
-                        {p.socialStyle && <span className="badge">{p.socialStyle}</span>}
-                        {p.studyHabits && <span className="badge badge-accent">{p.studyHabits}</span>}
-                      </div>
-                    )}
-
-                    <div className="request-card-actions">
-                      <button
-                        className="btn btn-success"
-                        onClick={() => handleAccept(req._id)}
-                        disabled={actionLoading === req._id}
-                      >
-                        {actionLoading === req._id ? '...' : 'Accept'}
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleReject(req._id)}
-                        disabled={actionLoading === req._id}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      <div className="page">
+        {/* Header */}
+        <div style={{ marginBottom: '48px' }}>
+          <h1 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '40px',
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            lineHeight: 1
+          }}>
+            Requests
+          </h1>
+          <p style={{
+            color: 'var(--text-muted)',
+            fontSize: '12px',
+            marginTop: '8px'
+          }}>
+            {pending.length} pending
+          </p>
         </div>
+
+        <hr className="divider" />
+
+        {/* Pending requests */}
+        {pending.length === 0 && accepted.length === 0 && (
+          <div style={{
+            border: '1px dashed var(--border)',
+            padding: '60px 40px',
+            textAlign: 'center'
+          }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+              No incoming requests yet.
+            </p>
+          </div>
+        )}
+
+        {pending.length > 0 && (
+          <div style={{ marginBottom: '48px' }}>
+            <p style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: '16px'
+            }}>
+              Pending
+            </p>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1px',
+              background: 'var(--border)',
+              border: '1px solid var(--border)'
+            }}>
+              {pending.map(request => (
+                <div
+                  key={request._id}
+                  style={{
+                    background: 'var(--bg)',
+                    padding: '24px 28px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '24px'
+                  }}
+                >
+                  {/* Sender info */}
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      letterSpacing: '-0.01em',
+                      marginBottom: '4px'
+                    }}>
+                      {request.from.name}
+                    </h3>
+                    <p style={{
+                      fontSize: '12px',
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}>
+                      {request.from.profile?.course
+                        ? `${request.from.profile.course}${request.from.profile?.year ? ` · Year ${request.from.profile.year}` : ''}`
+                        : 'No course info'
+                      }
+                    </p>
+                  </div>
+
+                  {/* Tags */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {request.from.profile?.sleepSchedule && (
+                      <span className="tag">{request.from.profile.sleepSchedule}</span>
+                    )}
+                    {request.from.profile?.socialStyle && (
+                      <span className="tag">{request.from.profile.socialStyle}</span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                    <button
+                      className="btn-primary"
+                      onClick={() => handleAccept(request._id)}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      className="btn-danger"
+                      onClick={() => handleReject(request._id)}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Accepted requests */}
+        {accepted.length > 0 && (
+          <div>
+            <p style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: '16px'
+            }}>
+              Matched
+            </p>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1px',
+              background: 'var(--border)',
+              border: '1px solid var(--border)'
+            }}>
+              {accepted.map(request => (
+                <div
+                  key={request._id}
+                  style={{
+                    background: 'var(--bg)',
+                    padding: '24px 28px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div>
+                    <h3 style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '18px',
+                      fontWeight: 700,
+                      letterSpacing: '-0.01em',
+                      marginBottom: '4px'
+                    }}>
+                      {request.from.name}
+                    </h3>
+                    <p style={{
+                      fontSize: '12px',
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}>
+                      {request.from.profile?.course || 'No course info'}
+                    </p>
+                  </div>
+                  <span className="tag tag-accent">Matched</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
-  );
+  )
 }
