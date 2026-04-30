@@ -1,137 +1,171 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import API from '../api/axios';
-import './Auth.css';
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const { login } = useAuth()
+  const navigate = useNavigate()
+
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
     rollNumber: '',
-    hostel: 'HOR 21A',
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+    hostel: 'HOR 21A'
+  })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
+    e.preventDefault()
+    setError('')
+    setLoading(true)
     try {
-      const res = await API.post('/api/auth/register', form);
-      login(res.data.token, res.data.user);
-      navigate('/me');
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, form)
+      login(res.data.user, res.data.token)
+      navigate('/me')
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || 'Something went wrong')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-header">
-          <div className="auth-header-icon">🏠</div>
-          <h1>Create Account</h1>
-          <p>Join HostelMatch and find your ideal roommate</p>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+    }}>
+      {/* Left panel */}
+      <div style={{
+        flex: 1,
+        borderRight: '1px solid var(--border)',
+        padding: '48px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between'
+      }}>
+        <Link to="/" style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '18px',
+          fontWeight: 800,
+          letterSpacing: '-0.02em'
+        }}>
+          Hostel<span style={{ color: 'var(--accent)' }}>Match</span>
+        </Link>
+
+        <div>
+          <span className="tag tag-accent" style={{ marginBottom: '16px', display: 'inline-block' }}>
+            HOR 21A
+          </span>
+          <h2 style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '48px',
+            fontWeight: 800,
+            lineHeight: 0.95,
+            letterSpacing: '-0.03em'
+          }}>
+            Create your<br />profile.
+          </h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-card glass-card">
-          {error && <div className="auth-error">{error}</div>}
+        <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+          Already have an account?{' '}
+          <Link to="/login" style={{ color: 'var(--text)', textDecoration: 'underline' }}>
+            Login
+          </Link>
+        </p>
+      </div>
 
+      {/* Right panel — form */}
+      <div style={{
+        flex: 1,
+        padding: '48px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
+      }}>
+        <p style={{
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          color: 'var(--text-muted)',
+          marginBottom: '32px'
+        }}>
+          Step 01 — Account Details
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="form-group">
-            <label className="form-label" htmlFor="register-name">Full Name</label>
+            <label>Full Name</label>
             <input
-              id="register-name"
-              className="form-input"
-              type="text"
               name="name"
-              placeholder="John Doe"
               value={form.name}
               onChange={handleChange}
+              placeholder="Your full name"
               required
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="register-email">Email</label>
+            <label>Email</label>
             <input
-              id="register-email"
-              className="form-input"
-              type="email"
               name="email"
-              placeholder="john@university.edu"
+              type="email"
               value={form.email}
               onChange={handleChange}
+              placeholder="your@email.com"
               required
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="register-password">Password</label>
+            <label>Password</label>
             <input
-              id="register-password"
-              className="form-input"
-              type="password"
               name="password"
-              placeholder="••••••••"
+              type="password"
               value={form.password}
               onChange={handleChange}
+              placeholder="Min. 6 characters"
               required
-              minLength={6}
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="register-roll">Roll Number</label>
+            <label>Roll Number</label>
             <input
-              id="register-roll"
-              className="form-input"
-              type="text"
               name="rollNumber"
-              placeholder="21CS10001"
               value={form.rollNumber}
               onChange={handleChange}
+              placeholder="Your university roll number"
               required
             />
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="register-hostel">Hostel</label>
-            <select
-              id="register-hostel"
-              className="form-select"
-              name="hostel"
-              value={form.hostel}
-              onChange={handleChange}
-            >
+            <label>Hostel</label>
+            <select name="hostel" value={form.hostel} onChange={handleChange}>
               <option value="HOR 21A">HOR 21A</option>
             </select>
           </div>
 
+          {error && <p className="error-msg">{error}</p>}
+
           <button
             type="submit"
-            className="btn btn-primary auth-submit"
+            className="btn-primary"
             disabled={loading}
+            style={{ marginTop: '8px', width: '100%' }}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
-
-        <div className="auth-footer">
-          Already have an account? <Link to="/login">Login</Link>
-        </div>
       </div>
     </div>
-  );
+  )
 }

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Landing from './pages/Landing'
+import Register from './pages/Register'
 
 function App() {
   return (
@@ -8,7 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<div>Login</div>} />
-        <Route path="/register" element={<div>Register</div>} />
+        <Route path="/register" element={<Register />} />
         <Route path="/browse" element={
           <ProtectedRoute><div>Browse</div></ProtectedRoute>
         } />
