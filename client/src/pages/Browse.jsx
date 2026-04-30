@@ -29,7 +29,8 @@ export default function Browse() {
         setMembers(membersRes.data)
         setRequests(incomingRes.data)
         setSentRequests(sentRes.data)
-      } catch {
+      } catch (err) {
+        console.error('Browse fetch error:', err)
         setError('Failed to load members')
       } finally {
         setLoading(false)

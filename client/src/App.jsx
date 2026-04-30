@@ -4,6 +4,7 @@ import Landing from './pages/Landing'
 import Register from './pages/Register'
 import Login from './pages/Login'
 import Browse from './pages/Browse'
+import Profile from './pages/Profile'
 
 function App() {
   return (
@@ -16,7 +17,7 @@ function App() {
           <ProtectedRoute><Browse /></ProtectedRoute>
         } />
         <Route path="/profile/:id" element={
-          <ProtectedRoute><div>Profile</div></ProtectedRoute>
+          <ProtectedRoute><Profile /></ProtectedRoute>
         } />
         <Route path="/me" element={
           <ProtectedRoute><div>My Profile</div></ProtectedRoute>
