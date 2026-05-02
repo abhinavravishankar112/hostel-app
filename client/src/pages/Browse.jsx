@@ -34,7 +34,7 @@ export default function Browse() {
         setMembers(membersRes.data)
         setRequests(incomingRes.data)
         setSentRequests(sentRes.data)
-      } catch (err) {
+      } catch {
         setError('Failed to load members')
       } finally {
         setLoading(false)
