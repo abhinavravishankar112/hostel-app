@@ -13,6 +13,11 @@ export default function Browse() {
   const [sentRequests, setSentRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filters, setFilters] = useState({
+    year: '',
+    sleepSchedule: '',
+    socialStyle: ''
+  })
 
   const headers = useMemo(() => ({
     Authorization: `Bearer ${token}`
@@ -30,7 +35,6 @@ export default function Browse() {
         setRequests(incomingRes.data)
         setSentRequests(sentRes.data)
       } catch (err) {
-        console.error('Browse fetch error:', err)
         setError('Failed to load members')
       } finally {
         setLoading(false)
@@ -95,7 +99,6 @@ export default function Browse() {
 
   const renderButton = (member) => {
     const state = getButtonState(member)
-
     switch (state.type) {
       case 'self':
         return null
@@ -128,6 +131,13 @@ export default function Browse() {
     }
   }
 
+  const filteredMembers = members.filter(member => {
+    if (filters.sleepSchedule && member.profile?.sleepSchedule !== filters.sleepSchedule) return false
+    if (filters.socialStyle && member.profile?.socialStyle !== filters.socialStyle) return false
+    if (filters.year && String(member.profile?.year) !== filters.year) return false
+    return true
+  })
+
   if (loading) return (
     <>
       <Navbar />
@@ -146,6 +156,7 @@ export default function Browse() {
     <>
       <Navbar />
       <div className="page">
+        {/* Header */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -167,12 +178,82 @@ export default function Browse() {
             </h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-            {members.length} student{members.length !== 1 ? 's' : ''}
+            {filteredMembers.length} student{filteredMembers.length !== 1 ? 's' : ''}
+            {filteredMembers.length !== members.length && (
+              <span style={{ color: 'var(--text-muted)' }}> (filtered from {members.length})</span>
+            )}
           </p>
         </div>
 
         <hr className="divider" />
 
+        {/* Filter bar */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '1px',
+          background: 'var(--border)',
+          border: '1px solid var(--border)',
+          marginBottom: '32px'
+        }}>
+          <select
+            value={filters.sleepSchedule}
+            onChange={e => setFilters({ ...filters, sleepSchedule: e.target.value })}
+            style={{ border: 'none', borderRadius: 0 }}
+          >
+            <option value="">All Sleep Schedules</option>
+            <option value="early bird">Early Bird</option>
+            <option value="night owl">Night Owl</option>
+            <option value="flexible">Flexible</option>
+          </select>
+
+          <select
+            value={filters.socialStyle}
+            onChange={e => setFilters({ ...filters, socialStyle: e.target.value })}
+            style={{ border: 'none', borderRadius: 0 }}
+          >
+            <option value="">All Social Styles</option>
+            <option value="introverted">Introverted</option>
+            <option value="extroverted">Extroverted</option>
+            <option value="mixed">Mixed</option>
+          </select>
+
+          <select
+            value={filters.year}
+            onChange={e => setFilters({ ...filters, year: e.target.value })}
+            style={{ border: 'none', borderRadius: 0 }}
+          >
+            <option value="">All Years</option>
+            <option value="1">Year 1</option>
+            <option value="2">Year 2</option>
+            <option value="3">Year 3</option>
+            <option value="4">Year 4</option>
+          </select>
+
+          <button
+            className="btn-ghost"
+            onClick={() => setFilters({ year: '', sleepSchedule: '', socialStyle: '' })}
+            style={{ border: 'none', borderLeft: '1px solid var(--border)' }}
+          >
+            Clear Filters
+          </button>
+        </div>
+
+        {/* Empty filter state */}
+        {filteredMembers.length === 0 && (
+          <div style={{
+            background: 'var(--bg)',
+            padding: '60px 40px',
+            textAlign: 'center',
+            border: '1px solid var(--border)'
+          }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+              No students match your filters.
+            </p>
+          </div>
+        )}
+
+        {/* Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
@@ -180,7 +261,7 @@ export default function Browse() {
           background: 'var(--border)',
           border: '1px solid var(--border)'
         }}>
-          {members.map(member => (
+          {filteredMembers.map(member => (
             <div
               key={member._id}
               onClick={() => navigate(`/profile/${member._id}`)}
@@ -193,6 +274,7 @@ export default function Browse() {
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--bg)'}
             >
+              {/* Profile pic */}
               <div style={{
                 width: '48px',
                 height: '48px',
@@ -225,6 +307,7 @@ export default function Browse() {
                 )}
               </div>
 
+              {/* Name + year */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -251,6 +334,7 @@ export default function Browse() {
                 )}
               </div>
 
+              {/* Course */}
               {member.profile?.course && (
                 <p style={{
                   fontSize: '12px',
@@ -263,6 +347,7 @@ export default function Browse() {
                 </p>
               )}
 
+              {/* Tags */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '20px' }}>
                 {member.profile?.sleepSchedule && (
                   <span className="tag">{member.profile.sleepSchedule}</span>
@@ -275,6 +360,7 @@ export default function Browse() {
                 )}
               </div>
 
+              {/* Hobbies */}
               {member.profile?.hobbies?.length > 0 && (
                 <p style={{
                   fontSize: '12px',
@@ -285,6 +371,7 @@ export default function Browse() {
                 </p>
               )}
 
+              {/* Button */}
               <div onClick={e => e.stopPropagation()}>
                 {renderButton(member)}
               </div>
