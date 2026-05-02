@@ -1,52 +1,97 @@
-.browse-header {
+/* ── Filter Bar ── */
+.filter-bar {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
   margin-bottom: 32px;
+  flex-wrap: wrap;
 }
 
-.browse-header-left .page-title {
-  margin-bottom: 4px;
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
 }
 
-.browse-search {
+.filter-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.filter-select-wrapper {
   position: relative;
-  width: 280px;
 }
 
-.browse-search-icon {
+.filter-select {
+  width: 100%;
+  padding: 9px 32px 9px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.filter-select:hover {
+  border-color: #444;
+}
+
+.filter-select:focus {
+  border-color: var(--accent);
+}
+
+.filter-select.filter-active {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.filter-select option {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+.filter-chevron {
   position: absolute;
-  left: 14px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: 12px;
   pointer-events: none;
 }
 
-.browse-search input {
-  width: 100%;
-  padding: 10px 14px 10px 38px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  transition: all var(--transition-fast);
-}
-
-.browse-search input:focus {
-  border-color: var(--accent-primary);
-  background: var(--bg-input-focus);
-  box-shadow: 0 0 0 3px var(--accent-primary-glow);
-}
-
-.browse-search input::placeholder {
+.filter-clear {
+  padding: 9px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+  align-self: flex-end;
 }
 
+.filter-clear:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ── Browse Grid ── */
 .browse-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -66,14 +111,16 @@
   margin-bottom: 16px;
 }
 
+/* ── Responsive ── */
 @media (max-width: 768px) {
-  .browse-header {
+  .filter-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
 
-  .browse-search {
-    width: 100%;
+  .filter-group {
+    min-width: 0;
   }
 
   .browse-grid {

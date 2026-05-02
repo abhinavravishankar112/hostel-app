@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
+import './Browse.css'
 
 export default function Browse() {
   const { token, user } = useAuth()
@@ -188,55 +189,67 @@ export default function Browse() {
         <hr className="divider" />
 
         {/* Filter bar */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '1px',
-          background: 'var(--border)',
-          border: '1px solid var(--border)',
-          marginBottom: '32px'
-        }}>
-          <select
-            value={filters.sleepSchedule}
-            onChange={e => setFilters({ ...filters, sleepSchedule: e.target.value })}
-            style={{ border: 'none', borderRadius: 0 }}
-          >
-            <option value="">All Sleep Schedules</option>
-            <option value="early bird">Early Bird</option>
-            <option value="night owl">Night Owl</option>
-            <option value="flexible">Flexible</option>
-          </select>
+        <div className="filter-bar">
+          <div className="filter-group">
+            <label className="filter-label">Sleep Schedule</label>
+            <div className="filter-select-wrapper">
+              <select
+                value={filters.sleepSchedule}
+                onChange={e => setFilters({ ...filters, sleepSchedule: e.target.value })}
+                className={`filter-select${filters.sleepSchedule ? ' filter-active' : ''}`}
+              >
+                <option value="">All</option>
+                <option value="early bird">Early Bird</option>
+                <option value="night owl">Night Owl</option>
+                <option value="flexible">Flexible</option>
+              </select>
+              <span className="filter-chevron">▾</span>
+            </div>
+          </div>
 
-          <select
-            value={filters.socialStyle}
-            onChange={e => setFilters({ ...filters, socialStyle: e.target.value })}
-            style={{ border: 'none', borderRadius: 0 }}
-          >
-            <option value="">All Social Styles</option>
-            <option value="introverted">Introverted</option>
-            <option value="extroverted">Extroverted</option>
-            <option value="mixed">Mixed</option>
-          </select>
+          <div className="filter-group">
+            <label className="filter-label">Social Style</label>
+            <div className="filter-select-wrapper">
+              <select
+                value={filters.socialStyle}
+                onChange={e => setFilters({ ...filters, socialStyle: e.target.value })}
+                className={`filter-select${filters.socialStyle ? ' filter-active' : ''}`}
+              >
+                <option value="">All</option>
+                <option value="introverted">Introverted</option>
+                <option value="extroverted">Extroverted</option>
+                <option value="mixed">Mixed</option>
+              </select>
+              <span className="filter-chevron">▾</span>
+            </div>
+          </div>
 
-          <select
-            value={filters.year}
-            onChange={e => setFilters({ ...filters, year: e.target.value })}
-            style={{ border: 'none', borderRadius: 0 }}
-          >
-            <option value="">All Years</option>
-            <option value="1">Year 1</option>
-            <option value="2">Year 2</option>
-            <option value="3">Year 3</option>
-            <option value="4">Year 4</option>
-          </select>
+          <div className="filter-group">
+            <label className="filter-label">Year</label>
+            <div className="filter-select-wrapper">
+              <select
+                value={filters.year}
+                onChange={e => setFilters({ ...filters, year: e.target.value })}
+                className={`filter-select${filters.year ? ' filter-active' : ''}`}
+              >
+                <option value="">All</option>
+                <option value="1">Year 1</option>
+                <option value="2">Year 2</option>
+                <option value="3">Year 3</option>
+                <option value="4">Year 4</option>
+              </select>
+              <span className="filter-chevron">▾</span>
+            </div>
+          </div>
 
-          <button
-            className="btn-ghost"
-            onClick={() => setFilters({ year: '', sleepSchedule: '', socialStyle: '' })}
-            style={{ border: 'none', borderLeft: '1px solid var(--border)' }}
-          >
-            Clear Filters
-          </button>
+          {(filters.sleepSchedule || filters.socialStyle || filters.year) && (
+            <button
+              className="filter-clear"
+              onClick={() => setFilters({ year: '', sleepSchedule: '', socialStyle: '' })}
+            >
+              ✕ Clear
+            </button>
+          )}
         </div>
 
         {/* Empty filter state */}
