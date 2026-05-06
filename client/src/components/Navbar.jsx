@@ -13,7 +13,7 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link to="/browse" style={{
+      <Link to="/" style={{
         fontFamily: 'var(--font-display)',
         fontSize: '18px',
         fontWeight: 800,
