@@ -133,7 +133,7 @@ exports.getIncomingRequests = async (req, res) => {
   try {
     const requests = await MatchRequest.find({
       to: req.user.id,
-      status: 'pending'
+      status: { $in: ['pending', 'accepted'] }
     }).populate('from', '-password');
     res.json(requests);
 
@@ -145,6 +145,7 @@ exports.getIncomingRequests = async (req, res) => {
 exports.getSentRequests = async (req, res) => {
   try {
     const requests = await MatchRequest.find({ from: req.user.id })
+      .populate('to', '-password')
     res.json(requests)
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message })

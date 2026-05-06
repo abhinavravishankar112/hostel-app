@@ -1,16 +1,161 @@
-.requests-page { max-width: 640px; margin: 0 auto; }
-.requests-list { display: flex; flex-direction: column; gap: 16px; }
-.request-card { padding: 24px; animation: fadeIn 0.4s ease forwards; opacity: 0; }
-.request-card:nth-child(1) { animation-delay: 0.05s; }
-.request-card:nth-child(2) { animation-delay: 0.1s; }
-.request-card:nth-child(3) { animation-delay: 0.15s; }
-.request-card:nth-child(4) { animation-delay: 0.2s; }
-.request-card-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.request-card-avatar { width: 48px; height: 48px; border-radius: var(--radius-sm); background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; color: white; flex-shrink: 0; }
-.request-card-info { flex: 1; min-width: 0; }
-.request-card-name { font-size: 1rem; font-weight: 600; color: var(--text-primary); text-decoration: none; transition: color var(--transition-fast); }
-.request-card-name:hover { color: var(--accent-secondary); }
-.request-card-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
-.request-card-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
-.request-card-actions { display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
-.request-card-actions .btn { flex: 1; padding: 10px; font-size: 0.875rem; }
+/* ── Match Section ── */
+.match-header {
+  margin-bottom: 24px;
+}
+
+.match-header .tag {
+  margin-bottom: 12px;
+}
+
+.match-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.match-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ── Match Card ── */
+.match-card {
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.match-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.match-card:hover {
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 24px rgba(245, 166, 35, 0.08);
+}
+
+.match-card-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 28px 32px;
+  position: relative;
+}
+
+/* ── Avatar ── */
+.match-avatar {
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+.match-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.match-avatar-letter {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  color: var(--text-muted);
+}
+
+/* ── Info ── */
+.match-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-info-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.match-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.match-year {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.match-course {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.match-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.match-hobbies {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.match-instagram {
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* ── Arrow ── */
+.match-arrow {
+  font-size: 24px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s, color 0.2s;
+}
+
+.match-card:hover .match-arrow {
+  transform: translateX(4px);
+  color: var(--accent);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .match-card-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .match-arrow {
+    display: none;
+  }
+}
