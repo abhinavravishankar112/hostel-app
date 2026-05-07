@@ -98,31 +98,6 @@
   font-size: 13px;
 }
 
-/* Decorative grid */
-.landing-grid-bg {
-  position: absolute;
-  right: -40px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-.landing-grid-cell {
-  width: 64px;
-  height: 64px;
-  background: var(--bg);
-}
-
-.landing-grid-cell:nth-child(3n) {
-  background: var(--bg-secondary);
-}
-
 /* ── Section shared ── */
 .landing-section {
   border-top: 1px solid var(--border);

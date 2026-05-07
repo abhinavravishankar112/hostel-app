@@ -57,12 +57,6 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* Decorative grid */}
-        <div className="landing-grid-bg" aria-hidden="true">
-          {Array.from({ length: 24 }).map((_, i) => (
-            <div key={i} className="landing-grid-cell" />
-          ))}
-        </div>
       </section>
 
       {/* ── How it works ── */}
