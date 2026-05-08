@@ -96,26 +96,49 @@ export default function Profile() {
 
   const renderButton = () => {
     const state = getButtonState()
+    
+    // The "Message" button should always be available unless it's the user's own profile
+    const messageButton = state.type !== 'self' ? (
+      <button 
+        className="btn-secondary" 
+        onClick={() => navigate(`/chat/${id}`)}
+        style={{ marginLeft: '12px' }}
+      >
+        Message
+      </button>
+    ) : null;
+
+    let actionButton = null;
     switch (state.type) {
-      case 'self':
-        return null
       case 'incoming':
-        return (
+        actionButton = (
           <button className="btn-primary" onClick={() => acceptRequest(state.requestId)}>
             Accept Request
           </button>
         )
+        break;
       case 'matched':
-        return <button className="btn-disabled">Matched</button>
+        actionButton = <button className="btn-disabled">Matched</button>
+        break;
       case 'sent':
-        return <button className="btn-disabled">Request Sent</button>
+        actionButton = <button className="btn-disabled">Request Sent</button>
+        break;
       case 'taken':
-        return <button className="btn-disabled">Already Matched</button>
+        actionButton = <button className="btn-disabled">Already Matched</button>
+        break;
       case 'available':
-        return <button className="btn-primary" onClick={sendRequest}>Send Request</button>
+        actionButton = <button className="btn-primary" onClick={sendRequest}>Send Request</button>
+        break;
       default:
-        return null
+        actionButton = null;
     }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {actionButton}
+        {messageButton}
+      </div>
+    )
   }
 
   if (loading) return (

@@ -87,6 +87,24 @@ select option {
   cursor: not-allowed;
 }
 
+.btn-secondary {
+  background: var(--bg-secondary);
+  color: var(--text);
+  padding: 10px 24px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #222222;
+  border-color: var(--text-muted);
+  color: #ffffff;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--text);

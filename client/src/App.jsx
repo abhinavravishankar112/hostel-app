@@ -7,6 +7,7 @@ import Browse from './pages/Browse'
 import Profile from './pages/Profile'
 import MyProfile from './pages/MyProfile'
 import Requests from './pages/Requests'
+import Chat from './pages/Chat'
 
 function App() {
   return (
@@ -26,6 +27,9 @@ function App() {
         } />
         <Route path="/requests" element={
           <ProtectedRoute><Requests /></ProtectedRoute>
+        } />
+        <Route path="/chat/:userId" element={
+          <ProtectedRoute><Chat /></ProtectedRoute>
         } />
       </Routes>
     </BrowserRouter>
