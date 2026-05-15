@@ -129,6 +129,30 @@ exports.cancelRequest = async (req, res) => {
   }
 };
 
+exports.unmatchRequest = async (req, res) => {
+  try {
+    const request = await MatchRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ message: 'Match not found' });
+    }
+
+    // Either user involved can unmatch
+    if (request.from.toString() !== req.user.id && request.to.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    if (request.status !== 'accepted') {
+      return res.status(400).json({ message: 'Can only unmatch an accepted request' });
+    }
+
+    await request.deleteOne();
+    res.json({ message: 'Unmatched successfully' });
+
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
 exports.getIncomingRequests = async (req, res) => {
   try {
     const requests = await MatchRequest.find({

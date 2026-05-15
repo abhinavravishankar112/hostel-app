@@ -7,14 +7,15 @@ exports.register = async (req, res) => {
   const { name, email, password, rollNumber, hostel } = req.body;
 
   try {
-    // Check if hostel exists and roll number is valid
+    // Check if hostel exists
     const hostelDoc = await Hostel.findOne({ name: hostel });
     if (!hostelDoc) {
       return res.status(400).json({ message: 'Hostel not found' });
     }
-    if (!hostelDoc.validRollNumbers.includes(rollNumber)) {
-      return res.status(400).json({ message: 'Invalid roll number for this hostel' });
-    }
+    // TODO: Re-enable roll number validation later
+    // if (!hostelDoc.validRollNumbers.includes(rollNumber)) {
+    //   return res.status(400).json({ message: 'Invalid roll number for this hostel' });
+    // }
 
     // Check if user already exists
     const existingUser = await User.findOne({ $or: [{ email }, { rollNumber }] });

@@ -67,6 +67,20 @@ export default function Profile() {
     }
   }
 
+  const unmatchRequest = async (requestId) => {
+    if (!window.confirm('Are you sure you want to unmatch?')) return;
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/matches/unmatch/${requestId}`,
+        { headers }
+      )
+      setRequests(requests.filter(r => r._id !== requestId))
+      setSentRequests(sentRequests.filter(r => r._id !== requestId))
+    } catch (err) {
+      alert(err.response?.data?.message || 'Something went wrong')
+    }
+  }
+
   const getButtonState = () => {
     if (!member) return { type: 'self' }
     if (member._id === user.id) return { type: 'self' }
@@ -76,10 +90,15 @@ export default function Profile() {
     )
     if (incoming) return { type: 'incoming', requestId: incoming._id }
 
-    const matched = requests.find(
+    const matchedIncoming = requests.find(
       r => (r.from._id === member._id || r.to === member._id) && r.status === 'accepted'
     )
-    if (matched) return { type: 'matched' }
+    if (matchedIncoming) return { type: 'matched', requestId: matchedIncoming._id }
+    
+    const matchedSent = sentRequests.find(
+      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
+    )
+    if (matchedSent) return { type: 'matched', requestId: matchedSent._id }
 
     const sent = sentRequests.find(
       r => r.to === member._id && r.status === 'pending'
@@ -118,7 +137,11 @@ export default function Profile() {
         )
         break;
       case 'matched':
-        actionButton = <button className="btn-disabled">Matched</button>
+        actionButton = (
+          <button className="btn-danger" onClick={() => unmatchRequest(state.requestId)}>
+            Unmatch
+          </button>
+        )
         break;
       case 'sent':
         actionButton = <button className="btn-disabled">Request Sent</button>

@@ -63,6 +63,20 @@ export default function Requests() {
     }
   }
 
+  const handleUnmatch = async (requestId) => {
+    if (!window.confirm('Are you sure you want to unmatch?')) return;
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/matches/unmatch/${requestId}`,
+        { headers }
+      )
+      setRequests(requests.filter(r => r._id !== requestId))
+      setSentRequests(sentRequests.filter(r => r._id !== requestId))
+    } catch (err) {
+      alert(err.response?.data?.message || 'Something went wrong')
+    }
+  }
+
   if (loading) return (
     <>
       <Navbar />
@@ -85,9 +99,9 @@ export default function Requests() {
 
   // The roommate is the other person in the match
   const match = acceptedIncoming
-    ? { roommate: acceptedIncoming.from, matchedAt: acceptedIncoming.updatedAt }
+    ? { id: acceptedIncoming._id, roommate: acceptedIncoming.from, matchedAt: acceptedIncoming.updatedAt }
     : acceptedSent
-      ? { roommate: acceptedSent.to, matchedAt: acceptedSent.updatedAt }
+      ? { id: acceptedSent._id, roommate: acceptedSent.to, matchedAt: acceptedSent.updatedAt }
       : null
 
   return (
@@ -119,16 +133,25 @@ export default function Requests() {
         {/* ── Matched Roommate ── */}
         {match && (
           <div style={{ marginBottom: '48px' }}>
-            <div className="match-header">
-              <span className="tag tag-accent">MATCHED</span>
-              <h2 className="match-title">Your Roommate</h2>
-              {match.matchedAt && (
-                <p className="match-date">
-                  Matched on {new Date(match.matchedAt).toLocaleDateString('en-IN', {
-                    day: 'numeric', month: 'long', year: 'numeric'
-                  })}
-                </p>
-              )}
+            <div className="match-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="tag tag-accent">MATCHED</span>
+                <h2 className="match-title">Your Roommate</h2>
+                {match.matchedAt && (
+                  <p className="match-date">
+                    Matched on {new Date(match.matchedAt).toLocaleDateString('en-IN', {
+                      day: 'numeric', month: 'long', year: 'numeric'
+                    })}
+                  </p>
+                )}
+              </div>
+              <button 
+                className="btn-danger" 
+                onClick={() => handleUnmatch(match.id)}
+                style={{ padding: '8px 16px', fontSize: '12px' }}
+              >
+                Unmatch
+              </button>
             </div>
 
             <div
