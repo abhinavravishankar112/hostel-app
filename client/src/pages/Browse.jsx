@@ -86,12 +86,12 @@ export default function Browse() {
     if (matched) return { type: 'matched' }
 
     const sent = sentRequests.find(
-      r => r.to === member._id && r.status === 'pending'
+      r => r.to?._id === member._id && r.status === 'pending'
     )
     if (sent) return { type: 'sent' }
 
     const memberMatched = sentRequests.find(
-      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
+      r => (r.from === member._id || r.to?._id === member._id) && r.status === 'accepted'
     )
     if (memberMatched) return { type: 'taken' }
 
@@ -133,6 +133,7 @@ export default function Browse() {
   }
 
   const filteredMembers = members.filter(member => {
+    if (member._id === user.id) return false
     if (filters.sleepSchedule && member.profile?.sleepSchedule !== filters.sleepSchedule) return false
     if (filters.socialStyle && member.profile?.socialStyle !== filters.socialStyle) return false
     if (filters.year && String(member.profile?.year) !== filters.year) return false

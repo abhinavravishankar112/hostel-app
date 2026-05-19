@@ -96,17 +96,17 @@ export default function Profile() {
     if (matchedIncoming) return { type: 'matched', requestId: matchedIncoming._id }
     
     const matchedSent = sentRequests.find(
-      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
+      r => (r.from === member._id || r.to?._id === member._id) && r.status === 'accepted'
     )
     if (matchedSent) return { type: 'matched', requestId: matchedSent._id }
 
     const sent = sentRequests.find(
-      r => r.to === member._id && r.status === 'pending'
+      r => r.to?._id === member._id && r.status === 'pending'
     )
     if (sent) return { type: 'sent' }
 
     const memberMatched = sentRequests.find(
-      r => (r.from === member._id || r.to === member._id) && r.status === 'accepted'
+      r => (r.from === member._id || r.to?._id === member._id) && r.status === 'accepted'
     )
     if (memberMatched) return { type: 'taken' }
 
