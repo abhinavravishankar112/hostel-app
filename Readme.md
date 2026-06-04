@@ -29,9 +29,11 @@ Currently built for a single university, with plans to expand to more hostels ov
 
 - 🔐 **Secure Authentication** — Register and login with roll number verification. Only students with a valid roll number assigned to a hostel can sign up.
 - 👤 **Detailed Profiles** — Sleep schedule, study habits, social style, hobbies, year, course and more.
+- 📷 **Profile Pictures** — Upload custom profile images to stand out.
 - 🏘️ **Hostel Directory** — Browse every student in your hostel regardless of their match status.
 - 💌 **Roommate Requests** — Send, accept, reject and cancel roommate requests.
 - ✅ **Match System** — Once a request is accepted, both students are marked as matched. Button states on the browse page reflect the current match status of every student.
+- 💬 **Real-time Chat** — In-app messaging between matched students using WebSockets.
 - 🔒 **Protected Routes** — All pages except login and register require authentication.
 
 ---
@@ -41,12 +43,15 @@ Currently built for a single university, with plans to expand to more hostels ov
 **Frontend**
 - React (Vite)
 - React Router DOM
+- Socket.IO Client
+- Cloudinary (Image Uploads)
 - Axios
 - Hosted on Vercel
 
 **Backend**
 - Node.js
 - Express.js
+- Socket.IO (WebSockets)
 - JSON Web Tokens (JWT)
 - bcryptjs
 - Hosted on Render
@@ -74,10 +79,11 @@ cd hostel-app
 ### Backend Setup
 
 ```bash
+cd server
 npm install
 ```
 
-Create a `.env` file in the root folder:
+Create a `.env` file in the `server` folder:
 
 ```env
 PORT=5001
@@ -118,7 +124,7 @@ Client will start at `http://localhost:5173`
 
 ## Environment Variables
 
-### Server (`.env` in root)
+### Server (`/server/.env`)
 
 | Variable | Description |
 |---|---|
@@ -131,6 +137,8 @@ Client will start at `http://localhost:5173`
 | Variable | Description |
 |---|---|
 | `VITE_API_URL` | Base URL of the backend API (use `https://hostel-app-server.onrender.com` for production or `http://localhost:5001` for local dev) |
+| `VITE_CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name for profile picture uploads |
+| `VITE_CLOUDINARY_UPLOAD_PRESET` | Cloudinary unsigned upload preset name |
 
 ---
 
@@ -176,10 +184,12 @@ hostel-app/
 │   ├── models/
 │   │   ├── User.js
 │   │   ├── Hostel.js
+│   │   ├── Message.js
 │   │   └── MatchRequest.js
 │   ├── routes/
 │   │   ├── auth.js
 │   │   ├── users.js
+│   │   ├── messages.js
 │   │   └── matches.js
 │   └── server.js
 │
@@ -188,13 +198,15 @@ hostel-app/
         ├── api/
         │   └── axios.js
         ├── components/
+        │   ├── ImageUpload.jsx
         │   ├── Navbar.jsx
         │   ├── Navbar.css
         │   ├── ProtectedRoute.jsx
         │   ├── StudentCard.jsx
         │   └── StudentCard.css
         ├── context/
-        │   └── AuthContext.jsx
+        │   ├── AuthContext.jsx
+        │   └── SocketContext.jsx
         ├── pages/
         │   ├── Landing.jsx / Landing.css
         │   ├── Login.jsx / Auth.css
@@ -202,6 +214,7 @@ hostel-app/
         │   ├── Browse.jsx / Browse.css
         │   ├── Profile.jsx / Profile.css
         │   ├── MyProfile.jsx / MyProfile.css
+        │   ├── Chat.jsx
         │   └── Requests.jsx / Requests.css
         ├── App.jsx
         ├── App.css
@@ -213,8 +226,8 @@ hostel-app/
 
 ## Roadmap
 
-- [ ] Profile picture upload
-- [ ] In-app messaging between matched students
+- [x] Profile picture upload
+- [x] In-app messaging between matched students
 - [ ] Add more hostels within the university
 - [ ] Notifications for incoming requests
 - [x] Mobile responsive design
