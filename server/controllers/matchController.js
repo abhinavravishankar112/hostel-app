@@ -48,6 +48,7 @@ exports.sendRequest = async (req, res) => {
     });
 
     await request.save();
+    await request.populate('to', '-password');
     res.status(201).json(request);
 
   } catch (err) {

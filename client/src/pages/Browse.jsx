@@ -86,12 +86,12 @@ export default function Browse() {
     if (matched) return { type: 'matched' }
 
     const sent = sentRequests.find(
-      r => r.to?._id === member._id && r.status === 'pending'
+      r => (r.to?._id === member._id || r.to === member._id) && r.status === 'pending'
     )
     if (sent) return { type: 'sent' }
 
     const memberMatched = sentRequests.find(
-      r => (r.from === member._id || r.to?._id === member._id) && r.status === 'accepted'
+      r => (r.from === member._id || r.to?._id === member._id || r.to === member._id) && r.status === 'accepted'
     )
     if (memberMatched) return { type: 'taken' }
 
