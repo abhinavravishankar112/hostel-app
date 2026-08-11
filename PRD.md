@@ -157,6 +157,41 @@ University hostel room assignments are traditionally random and decided by admin
 
 ---
 
+## 5. Non-Functional Requirements
+
+| Category | Requirement |
+|---|---|
+| **Security** | All sensitive routes require a valid JWT. Passwords are hashed with bcrypt (salt rounds >= 10). Tokens expire after 7 days. |
+| **Performance** | API response times < 500ms under normal load. WebSocket message delivery < 200ms on same region. |
+| **Scalability** | Architecture should support adding multiple hostels and universities with minimal changes. |
+| **Availability** | 99.5% uptime target. Backend hosted on Render (auto-sleep on free tier — acceptable for v1). |
+| **Usability** | Mobile-responsive UI. Key actions (request, accept, chat) accessible within 2 taps/clicks. |
+| **Compatibility** | Support latest 2 versions of Chrome, Firefox, Safari, Edge. |
+| **Data Privacy** | User email, password, and roll number are never exposed in API list responses. |
 
 ---
-*Draft — August 2026*
+
+## 6. Constraints & Assumptions
+
+- **Constraint:** MongoDB Atlas Free Tier limits storage; must be monitored as user count grows.
+- **Constraint:** Render Free Tier introduces cold-start latency (~30s). Acceptable for v1.
+- **Constraint:** Cloudinary Free Tier has bandwidth limits; profile picture size should be restricted client-side.
+- **Assumption:** All users belong to the same university for v1.
+- **Assumption:** Hostel data (names, valid roll numbers) is seeded manually by the developer.
+- **Assumption:** One room = two students (matching is 1:1).
+
+---
+
+## 7. Roadmap
+
+| Phase | Features | Status |
+|---|---|---|
+| **v1.0** | Auth, Profiles, Browse, Requests, Match, Chat | Complete |
+| **v1.1** | Notifications for incoming requests, more hostels | Planned |
+| **v2.0** | Admin dashboard, roll number validation, multi-university support | Planned |
+| **v2.1** | Algorithmic compatibility scoring / smart suggestions | Planned |
+
+---
+
+*Document Owner: Abhinav Ravishankar*  
+*Last Updated: August 2026*
