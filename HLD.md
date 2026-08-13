@@ -161,6 +161,97 @@ Client                        Server                      DB
 
 ---
 
+## 5. Real-Time Chat Architecture
+
+```
+User A Browser               Server (Socket.IO)          User B Browser
+     │                             │                            │
+     │── connect (JWT auth) ──────►│                            │
+     │                             │── connect (JWT auth) ──────│
+     │                             │                            │
+     │                             │  socket.join(userId)       │
+     │                             │  onlineUsers Map updated   │
+     │                             │                            │
+     │── emit('send_message',     ►│                            │
+     │    {to: B_id, content})     │                            │
+     │                             │  Message.create() → DB     │
+     │                             │                            │
+     │◄── emit('message_sent')    ─│                            │
+     │                             │── io.to(B_id).emit(       ─│
+     │                             │   'receive_message', msg)  │
+     │                             │                            │
+```
+
+**Key Design Decisions:**
+- Each socket joins a **room named by their own userId** on connection.
+- Server uses `io.to(targetUserId).emit(...)` for point-to-point delivery.
+- Messages are **persisted to MongoDB** before being emitted.
+- Socket connections are authenticated via JWT in the `handshake.auth.token`.
 
 ---
-*Draft — August 2026*
+
+## 6. Data Flow — Roommate Request Lifecycle
+
+```
+State Machine:
+
+  [No Request]
+       │
+       ├──► sendRequest() ──────────► [Pending]
+       │                                   │
+       │                          ┌────────┤
+       │                          │        │
+       │                    accept()   reject()
+       │                          │        │
+       │                          ▼        ▼
+       │                      [Accepted]  [Rejected]
+       │                          │
+       │                    unmatch()
+       │                          │
+       └──────────────────────────┘
+       
+  cancelRequest() can be called from [Pending] by the sender → [No Request]
+```
+
+---
+
+## 7. Deployment Architecture
+
+```
+┌─────────────────────┐         ┌─────────────────────┐
+│     Vercel          │         │     Render           │
+│  (Frontend CDN)     │◄───────►│  (Backend Server)    │
+│                     │  HTTPS  │                      │
+│  React SPA          │  WSS    │  Node.js + Express   │
+│  hostel-app.vercel  │         │  + Socket.IO         │
+│  .app               │         │                      │
+└─────────────────────┘         └──────────┬──────────┘
+                                            │
+                                  ┌─────────┴────────────┐
+                                  │   MongoDB Atlas       │
+                                  │   (Cloud DB, US-East) │
+                                  └──────────────────────┘
+```
+
+**CI/CD:**
+- Frontend: Vercel auto-deploys on `git push` to `main`
+- Backend: Render auto-deploys on `git push` to `main`
+
+---
+
+## 8. Key Design Decisions & Rationale
+
+| Decision | Rationale |
+|---|---|
+| **JWT stored in localStorage** | Simple implementation for v1; acceptable given single-university scope. Consider httpOnly cookies for v2. |
+| **Socket.IO room per userId** | Eliminates need for complex room management; each user is always reachable via their own ID room. |
+| **Messages persisted before emit** | Guarantees message durability even if recipient is offline. |
+| **Hostel-scoped requests** | Enforced at controller level — prevents cross-hostel requests, reducing noise and maintaining privacy. |
+| **Cloudinary unsigned preset** | Simplifies client-side uploads without exposing API secrets; suitable for profile pictures. |
+| **React Context for Auth/Socket** | Avoids prop drilling for globally needed auth state and socket instance; appropriate for app size. |
+| **1:1 match constraint** | Mirrors real-world hostel room capacity (typically 2 students per room). |
+
+---
+
+*Document Owner: Abhinav Ravishankar*  
+*Last Updated: August 2026*
