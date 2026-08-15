@@ -711,5 +711,5 @@ hostel-app/
 
 ---
 
-*Document Owner: Abhinav Ravishankar*  
+*Document Owner: Abhinav Ravi Shankar*  
 *Last Updated: August 2026*
