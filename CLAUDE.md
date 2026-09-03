@@ -65,4 +65,4 @@ A `Hostel` document must exist in the database before anyone can register — th
 - `components/StudentCard.jsx` and its CSS are unused — `Browse.jsx` inlines its own card markup.
 - Profile images upload browser → Cloudinary via an unsigned preset ([ImageUpload.jsx](client/src/components/ImageUpload.jsx)); the server only ever stores the returned URL string in `profile.profilePic`.
 - Roll-number validation in `authController.register` is commented out behind a `TODO: Re-enable` — registration currently accepts any roll number so long as the hostel exists.
-- `PUT /api/users/me` replaces the whole `profile` subdocument (`{ profile: req.body.profile }`), so callers must send the complete object.
+- `PUT /api/users/me` replaces the whole `profile` subdocument, so callers must send the complete object. It runs `runValidators: true`, and normalizes `''` to unset for the enum fields first — the client's "Select..." option submits `''`, which Mongoose's enum validator rejects. Any new enum path on `profile` must be added to `ENUM_FIELDS`.

@@ -72,6 +72,20 @@ exports.acceptRequest = async (req, res) => {
       return res.status(400).json({ message: 'Request is no longer pending' });
     }
 
+    // Neither user can already be in an accepted match
+    const alreadyMatched = await MatchRequest.findOne({
+      status: 'accepted',
+      $or: [
+        { from: req.user.id },
+        { to: req.user.id },
+        { from: request.from },
+        { to: request.from }
+      ]
+    });
+    if (alreadyMatched) {
+      return res.status(400).json({ message: 'One or both users are already matched' });
+    }
+
     request.status = 'accepted';
     await request.save();
     res.json(request);
