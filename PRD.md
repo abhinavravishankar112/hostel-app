@@ -59,6 +59,7 @@ University hostel room assignments are traditionally random and decided by admin
 - Match state management (one active match per user)
 - Unmatch capability
 - Real-time 1:1 chat between matched students via WebSockets
+- Compatibility scoring between students, with the directory sortable by best match
 - Mobile-responsive design
 - Profile picture upload via Cloudinary
 
@@ -66,7 +67,7 @@ University hostel room assignments are traditionally random and decided by admin
 - Multi-university support
 - Admin dashboard for hostel management
 - Push / browser notifications
-- Matching algorithm (algorithmic compatibility suggestions)
+- Machine-learning or behaviour-based matching (v1.1 ships a deterministic weighted score — see §4.6)
 - Group chats
 - Video/voice calling
 - Room number assignment integration
@@ -125,6 +126,8 @@ University hostel room assignments are traditionally random and decided by admin
 | BROWSE-02 | As a student, I want each student card to show their name, profile picture, course, year, and key lifestyle traits. | P0 |
 | BROWSE-03 | As a student, I want each card to reflect the current match status (Send Request / Pending / Matched / Request Received) with appropriate button states. | P0 |
 | BROWSE-04 | As a student, I want to click on a student's card to view their full profile. | P1 |
+| BROWSE-05 | As a student, I want each card to show a compatibility percentage so I can judge fit at a glance. | P0 |
+| BROWSE-06 | As a student, I want to sort the directory by best match, name, or year. | P1 |
 
 ### 4.4 Roommate Requests
 
@@ -154,6 +157,37 @@ University hostel room assignments are traditionally random and decided by admin
 | CHAT-02 | As a matched student, I want to see all past messages when I open the chat. | P0 |
 | CHAT-03 | As a student, I should only be able to chat with my confirmed match. | P0 |
 | CHAT-04 | As a student, I want to see message timestamps. | P1 |
+
+---
+
+### 4.6 Compatibility Scoring
+
+| ID | User Story | Priority |
+|---|---|---|
+| COMPAT-01 | As a student, I want a compatibility percentage against every other student in my hostel so I can tell who I would actually live well with. | P0 |
+| COMPAT-02 | As a student, I want the directory sorted by best match so the most compatible people surface first. | P0 |
+| COMPAT-03 | As a student, I want to see *why* we scored the way we did, dimension by dimension, so the number is trustworthy rather than a black box. | P1 |
+| COMPAT-04 | As a student with a thin profile, I want to be told that completing it is what unlocks matching. | P1 |
+| COMPAT-05 | As a student, I want shared hobbies called out so I have something to open a conversation with. | P2 |
+
+**Scoring Model:**
+
+| Dimension | Weight | Rationale |
+|---|---|---|
+| Sleep schedule | 30% | The most common source of real roommate conflict |
+| Study habits | 25% | Determines how the room is used during term time |
+| Social style | 20% | Drives guests, noise, and shared downtime |
+| Shared interests | 15% | Predicts friendship rather than mere tolerance |
+| Year | 10% | Proxy for similar timetables and exam periods |
+
+**Business Rules:**
+- Weights total 100, so a score reads directly as a percentage.
+- A dimension is scored **only when both students have filled that field in**. The weights of skipped dimensions are redistributed across the rest, so an incomplete profile lowers *confidence* rather than dragging the score down.
+- `flexible` (sleep, study) and `mixed` (social) part-match anything — they are bridges, not clashes.
+- Opposite social styles retain partial credit; opposite sleep schedules and study habits score zero.
+- When two students share no comparable fields, the score is **null, never 0** — the UI shows nothing rather than implying incompatibility.
+- `confidence` reports what share of the full profile was actually comparable, and is surfaced to the student whenever it is below 100%.
+- Scores are computed server-side so the rules stay in one place and cannot be tampered with by the client.
 
 ---
 
@@ -187,9 +221,10 @@ University hostel room assignments are traditionally random and decided by admin
 | Phase | Features | Status |
 |---|---|---|
 | **v1.0** | Auth, Profiles, Browse, Requests, Match, Chat | Complete |
-| **v1.1** | Notifications for incoming requests, more hostels | Planned |
+| **v1.1** | Weighted, explainable compatibility scoring + directory sorting | Complete |
+| **v1.2** | Notifications for incoming requests, more hostels | Planned |
 | **v2.0** | Admin dashboard, roll number validation, multi-university support | Planned |
-| **v2.1** | Algorithmic compatibility scoring / smart suggestions | Planned |
+| **v2.1** | Weights tuned from real match outcomes, smart suggestions | Planned |
 
 ---
 
