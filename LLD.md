@@ -236,8 +236,19 @@ Updates the authenticated user's profile.
 
 **Success Response `200`:** Updated user document (password excluded).
 
+**Error Responses:**
+| Code | Condition |
+|---|---|
+| 400 | `profile` missing from the request body |
+| 400 | A profile field fails schema validation (e.g. an unknown `sleepSchedule`) |
+
 **Controller logic (`userController.updateMe`):**
-- `User.findByIdAndUpdate(req.user.id, {profile: req.body.profile}, {new: true}).select('-password')`
+1. Reject with `400` if `req.body.profile` is absent
+2. Copy the profile and rewrite `''` to `undefined` for `sleepSchedule`, `studyHabits` and `socialStyle` — the client's "Select..." option submits an empty string, which is not a valid enum member and would otherwise fail validation for anyone leaving a dropdown blank
+3. `User.findByIdAndUpdate(req.user.id, {profile}, {new: true, runValidators: true}).select('-password')`
+4. A Mongoose `ValidationError` returns `400`; anything else returns `500`
+
+> **Note:** `$set` on the whole `profile` object is *replace* semantics, not merge — the client must send the complete profile object, or omitted fields are cleared. `runValidators` is required because update validators are off by default, so without it the enum constraints only apply at document creation.
 
 ---
 
@@ -245,10 +256,32 @@ Updates the authenticated user's profile.
 
 Returns all students in the authenticated user's hostel (password excluded).
 
-**Success Response `200`:** Array of user documents.
+**Success Response `200`:** Array of user documents, each carrying a `compatibility` summary against the caller:
+
+```json
+[
+  {
+    "_id": "652f1c...",
+    "name": "Rohan Mehta",
+    "hostel": "HOR 21A",
+    "profile": { "...": "..." },
+    "compatibility": {
+      "score": 78,
+      "confidence": 0.85,
+      "sharedHobbies": ["guitar", "chess"]
+    }
+  }
+]
+```
+
+The caller's own document is returned **without** a `compatibility` field. `breakdown` is deliberately omitted from this endpoint (see §5).
 
 **Controller logic (`userController.getHostelMembers`):**
-- `User.find({hostel: req.user.hostel}).select('-password')`
+1. In parallel: `User.findById(req.user.id).select('profile').lean()` and `User.find({hostel: req.user.hostel}).select('-password').lean()`
+2. Map over the members, skipping the caller
+3. `computeCompatibility(me.profile, member.profile)`, strip `breakdown`, attach the rest as `compatibility`
+
+> `.lean()` is required because computed fields are spread onto the returned documents.
 
 ---
 
@@ -256,7 +289,28 @@ Returns all students in the authenticated user's hostel (password excluded).
 
 Returns a specific student's profile. Only accessible if the target is in the same hostel.
 
-**Success Response `200`:** User document (password excluded).
+**Success Response `200`:** User document (password excluded), plus a full `compatibility` object including the per-dimension `breakdown`:
+
+```json
+{
+  "_id": "652f1c...",
+  "name": "Rohan Mehta",
+  "profile": { "...": "..." },
+  "compatibility": {
+    "score": 78,
+    "confidence": 0.85,
+    "sharedHobbies": ["guitar", "chess"],
+    "breakdown": [
+      { "key": "sleepSchedule", "label": "Sleep schedule", "weight": 30, "score": 1,
+        "detail": "You're both night owls" },
+      { "key": "studyHabits", "label": "Study habits", "weight": 25, "score": 0,
+        "detail": "Quiet studying vs group studying" }
+    ]
+  }
+}
+```
+
+Requesting your own profile returns the document with **no** `compatibility` field.
 
 **Error Responses:**
 | Code | Condition |
@@ -265,9 +319,10 @@ Returns a specific student's profile. Only accessible if the target is in the sa
 | 403 | User is in a different hostel |
 
 **Controller logic (`userController.getUserById`):**
-1. `User.findById(params.id).select('-password')` → 404 if null
+1. `User.findById(params.id).select('-password').lean()` → 404 if null
 2. Check `user.hostel === req.user.hostel` → 403 if mismatch
-3. Return user
+3. If the target is the caller, return the document unchanged
+4. Load the caller's profile and attach `computeCompatibility(me.profile, user.profile)`
 
 ---
 
@@ -310,12 +365,18 @@ Accepts the MatchRequest with `_id === :id`.
 | 404 | Request not found |
 | 403 | Caller is not the recipient |
 | 400 | Request is not pending |
+| 400 | Either user is already in an accepted match |
 
 **Controller logic (`matchController.acceptRequest`):**
 1. `MatchRequest.findById(params.id)` → 404 if null
 2. `request.to !== req.user.id` → 403
 3. `request.status !== 'pending'` → 400
-4. `request.status = 'accepted'; request.save()`
+4. Look for any `status: 'accepted'` request involving either the caller or `request.from` → 400 if one exists
+5. `request.status = 'accepted'; request.save()`
+
+> **Step 4 enforces the 1:1 invariant.** `sendRequest` performs the same check, but that alone is insufficient: two people can both hold *pending* requests to the same student, who could then accept both. The rule has to be enforced at the point of acceptance, not only at the point of sending.
+>
+> This remains a read-then-write with no transaction, so two genuinely simultaneous accepts could still both pass. A unique index cannot express the constraint either, since a student may be `from` in one request and `to` in another; closing the remaining race needs a transaction.
 
 ---
 
@@ -468,9 +529,100 @@ const onlineUsers = new Map();
 
 ---
 
-## 5. Frontend Architecture
+## 5. Compatibility Scoring
 
-### 5.1 Context Providers
+**Module:** `server/utils/compatibility.js`
+**Exports:** `computeCompatibility(mine, theirs)`, `WEIGHTS`
+
+A pure function over two `profile` subdocuments. It touches no database and holds no request state, so it is unit-testable in isolation and both user endpoints share one definition of the rules.
+
+### 5.1 Weights
+
+| Key | Label | Weight |
+|---|---|---|
+| `sleepSchedule` | Sleep schedule | 30 |
+| `studyHabits` | Study habits | 25 |
+| `socialStyle` | Social style | 20 |
+| `hobbies` | Shared interests | 15 |
+| `year` | Year | 10 |
+
+The weights total 100, so a score reads directly as a percentage.
+
+### 5.2 Per-dimension rules
+
+Each dimension yields a score in `0..1` plus a human-readable `detail` string.
+
+**Enum dimensions** (`sleepSchedule`, `studyHabits`, `socialStyle`):
+
+| Case | Score |
+|---|---|
+| Exact match | 1.0 |
+| Either side holds the neutral value — `flexible` for sleep/study, `mixed` for social | 0.75 |
+| Direct opposites — sleep schedule, study habits | 0.0 |
+| Direct opposites — social style | 0.25 |
+
+Social style keeps a floor because an introvert and an extrovert can share a room perfectly well; an early bird and a night owl on opposing schedules genuinely conflict.
+
+**`hobbies`** — case-insensitive, whitespace-trimmed, de-duplicated set intersection. `score = min(shared / 3, 1)`, so three shared hobbies earn full marks. The viewer's own spelling is what gets returned in `sharedHobbies` for display.
+
+**`year`** — same year `1.0`; one year apart `0.5`; further apart `0.0`.
+
+### 5.3 Assembly
+
+1. Score only dimensions where **both** profiles hold a value (`hobbies` requires both arrays to be non-empty).
+2. `scoredWeight` = the sum of the weights actually used.
+3. If `scoredWeight === 0`, return `{ score: null, confidence: 0, sharedHobbies: [], breakdown: [] }`.
+4. Otherwise `score = round((Σ weight × dimScore) / scoredWeight × 100)`, and `confidence = scoredWeight / 100`.
+
+Skipped dimensions are therefore invisible to the score itself and show up only as reduced confidence.
+
+### 5.4 Return shape
+
+```js
+{
+  score: 71,             // 0-100 integer, or null when nothing is comparable
+  confidence: 0.85,      // share of the total weight that was comparable
+  sharedHobbies: ['Guitar'],
+  breakdown: [           // descending weight order
+    { key: 'sleepSchedule', label: 'Sleep schedule', weight: 30, score: 0.75,
+      detail: 'One of you is flexible about sleep' }
+  ]
+}
+```
+
+### 5.5 Worked example
+
+Viewer: `night owl`, `quiet studier`, `introverted`, hobbies `[Guitar, Chess, Football]`, year 3.
+Target: `flexible`, `flexible`, `mixed`, hobbies `[Guitar]`, year 3.
+
+| Dimension | Weight | Score | Contribution | Detail |
+|---|---|---|---|---|
+| `sleepSchedule` | 30 | 0.75 | 22.5 | One of you is flexible about sleep |
+| `studyHabits` | 25 | 0.75 | 18.75 | One of you is flexible about studying |
+| `socialStyle` | 20 | 0.75 | 15 | One of you is a mix of both |
+| `hobbies` | 15 | 0.33 | 5 | Both into Guitar |
+| `year` | 10 | 1.00 | 10 | You're both in year 3 |
+
+Total contribution `71.25`, every dimension comparable, so `score = 71` and `confidence = 1`.
+
+### 5.6 Callers
+
+| Caller | `breakdown` included |
+|---|---|
+| `userController.getHostelMembers` | No — stripped so the directory payload stays small |
+| `userController.getUserById` | Yes |
+
+Neither endpoint scores a student against themselves.
+
+### 5.7 Extending the model
+
+Adding a dimension means updating `WEIGHTS`, `LABELS`, a scorer function, and the assembly block together, and rebalancing the weights so they still total 100. Anything that can be blank must be gated on both sides having a value, or incomplete profiles will start being penalised.
+
+---
+
+## 6. Frontend Architecture
+
+### 6.1 Context Providers
 
 #### `AuthContext` — `client/src/context/AuthContext.jsx`
 
@@ -500,7 +652,7 @@ const onlineUsers = new Map();
 
 ---
 
-### 5.2 Axios Configuration
+### 6.2 Axios Configuration
 
 **File:** `client/src/api/axios.js`
 
@@ -523,7 +675,7 @@ export default api
 
 ---
 
-### 5.3 Component Breakdown
+### 6.3 Component Breakdown
 
 #### `ProtectedRoute` — `client/src/components/ProtectedRoute.jsx`
 - Reads `user` and `loading` from `AuthContext`
@@ -546,6 +698,12 @@ export default api
   - `matched` → "Matched ✓" (success, disabled)
   - `self` → hidden
 
+#### `CompatibilityBadge` — `client/src/components/CompatibilityBadge.jsx`
+- Props: `compatibility` (the object returned by the API), `large` (boolean)
+- Renders nothing when `compatibility.score` is `null` — a missing score must never render as `0%`
+- Colour bands come from `scoreColor()` in `client/src/utils/compatibility.js`: `>= 80` success, `>= 60` accent, `>= 40` default text, below that muted. Low scores stay muted rather than red — the subject is a person, not an error
+- `scoreColor` lives in `utils/` rather than beside the component so the component file exports only a component (React Fast Refresh requirement)
+
 #### `ImageUpload` — `client/src/components/ImageUpload.jsx`
 - Reads Cloudinary config from `VITE_CLOUDINARY_CLOUD_NAME` and `VITE_CLOUDINARY_UPLOAD_PRESET`
 - Posts to Cloudinary's unsigned upload endpoint:
@@ -554,7 +712,7 @@ export default api
 
 ---
 
-### 5.4 Page-Level Logic
+### 6.4 Page-Level Logic
 
 #### `Browse.jsx` — `/browse`
 
@@ -623,7 +781,7 @@ const [requestIds, setRequestIds] = useState({})
 
 ---
 
-## 6. Environment Configuration
+## 7. Environment Configuration
 
 ### Server (`server/.env`)
 
@@ -643,7 +801,7 @@ const [requestIds, setRequestIds] = useState({})
 
 ---
 
-## 7. Project File Structure
+## 8. Project File Structure
 
 ```
 hostel-app/
@@ -668,6 +826,8 @@ hostel-app/
 │   │   │                         # DELETE /cancel|unmatch/:id,
 │   │   │                         # GET /requests, GET /sent
 │   │   └── messages.js           # GET /:userId
+│   ├── utils/
+│   │   └── compatibility.js      # computeCompatibility(), WEIGHTS
 │   └── server.js                 # Express app, Socket.IO setup, MongoDB connect
 │
 └── client/
@@ -675,6 +835,7 @@ hostel-app/
         ├── api/
         │   └── axios.js          # Axios instance with auth interceptor
         ├── components/
+        │   ├── CompatibilityBadge.jsx # Match percentage badge (card + profile)
         │   ├── ImageUpload.jsx   # Cloudinary direct upload component
         │   ├── Navbar.jsx        # Top navigation bar
         │   ├── Navbar.css
@@ -684,6 +845,8 @@ hostel-app/
         ├── context/
         │   ├── AuthContext.jsx   # Global auth state (user, token, login, logout)
         │   └── SocketContext.jsx # Socket.IO connection lifecycle
+        ├── utils/
+        │   └── compatibility.js  # scoreColor() — score-to-colour bands
         ├── pages/
         │   ├── Landing.jsx       # Public landing page
         │   ├── Login.jsx         # Email + password login form
@@ -700,7 +863,7 @@ hostel-app/
 
 ---
 
-## 8. Error Handling Strategy
+## 9. Error Handling Strategy
 
 | Layer | Strategy |
 |---|---|
