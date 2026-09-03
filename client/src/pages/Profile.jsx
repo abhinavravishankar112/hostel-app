@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
+import CompatibilityBadge from '../components/CompatibilityBadge'
+import { scoreColor } from '../utils/compatibility'
 
 export default function Profile() {
   const { id } = useParams()
@@ -273,6 +275,88 @@ export default function Profile() {
         </div>
 
         <hr className="divider" />
+
+        {/* Compatibility — absent on your own profile */}
+        {member.compatibility && (
+          <div style={{ marginBottom: '40px' }}>
+            <p style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: '12px'
+            }}>
+              Compatibility
+            </p>
+
+            {member.compatibility.score == null ? (
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                Not enough profile details on either side to compare yet.
+              </p>
+            ) : (
+              <>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '40px',
+                  border: '1px solid var(--border)',
+                  padding: '28px 32px',
+                  flexWrap: 'wrap'
+                }}>
+                  <CompatibilityBadge compatibility={member.compatibility} large />
+
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    flex: 1,
+                    minWidth: '280px'
+                  }}>
+                    {member.compatibility.breakdown.map(dim => (
+                      <div key={dim.key} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px',
+                        flexWrap: 'wrap'
+                      }}>
+                        <span style={{
+                          fontSize: '10px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          color: 'var(--text-muted)',
+                          width: '110px',
+                          flexShrink: 0
+                        }}>
+                          {dim.label}
+                        </span>
+                        <div style={{
+                          width: '80px',
+                          height: '3px',
+                          background: 'var(--bg-secondary)',
+                          flexShrink: 0
+                        }}>
+                          <div style={{
+                            width: `${dim.score * 100}%`,
+                            height: '100%',
+                            background: scoreColor(dim.score * 100)
+                          }} />
+                        </div>
+                        <span style={{ fontSize: '12px' }}>{dim.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {member.compatibility.confidence < 1 && (
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '12px' }}>
+                    Based on the {Math.round(member.compatibility.confidence * 100)}% of the
+                    profile you have both filled in.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Bio */}
         {member.profile?.bio && (

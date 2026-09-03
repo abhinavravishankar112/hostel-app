@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
+import CompatibilityBadge from '../components/CompatibilityBadge'
 import './Browse.css'
 
 export default function Browse() {
@@ -19,6 +20,7 @@ export default function Browse() {
     sleepSchedule: '',
     socialStyle: ''
   })
+  const [sort, setSort] = useState('match')
 
   const headers = useMemo(() => ({
     Authorization: `Bearer ${token}`
@@ -140,6 +142,18 @@ export default function Browse() {
     return true
   })
 
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    if (sort === 'name') return a.name.localeCompare(b.name)
+    if (sort === 'year') return (a.profile?.year || 99) - (b.profile?.year || 99)
+    // Best match first; anyone we can't score yet sinks to the bottom
+    return (b.compatibility?.score ?? -1) - (a.compatibility?.score ?? -1)
+  })
+
+  // Your own record comes back in the hostel list, so read your profile from it
+  const myProfile = members.find(m => m._id === (user?.id || user?._id))?.profile || {}
+  const profileIncomplete =
+    !myProfile.sleepSchedule && !myProfile.studyHabits && !myProfile.socialStyle
+
   if (loading) return (
     <>
       <Navbar />
@@ -188,6 +202,28 @@ export default function Browse() {
         </div>
 
         <hr className="divider" />
+
+        {/* Nudge to fill in the profile — without it nobody can be scored */}
+        {profileIncomplete && (
+          <div style={{
+            border: '1px solid var(--accent)',
+            padding: '18px 22px',
+            marginBottom: '32px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '20px',
+            flexWrap: 'wrap'
+          }}>
+            <p style={{ fontSize: '13px', maxWidth: '620px' }}>
+              Add your sleep schedule, study habits and social style to see how well
+              you match with everyone here.
+            </p>
+            <button className="btn-ghost" onClick={() => navigate('/me')}>
+              Complete Profile
+            </button>
+          </div>
+        )}
 
         {/* Filter bar */}
         <div className="filter-bar">
@@ -243,6 +279,22 @@ export default function Browse() {
             </div>
           </div>
 
+          <div className="filter-group">
+            <label className="filter-label">Sort By</label>
+            <div className="filter-select-wrapper">
+              <select
+                value={sort}
+                onChange={e => setSort(e.target.value)}
+                className={`filter-select${sort !== 'match' ? ' filter-active' : ''}`}
+              >
+                <option value="match">Best match</option>
+                <option value="name">Name (A-Z)</option>
+                <option value="year">Year</option>
+              </select>
+              <span className="filter-chevron">▾</span>
+            </div>
+          </div>
+
           {(filters.sleepSchedule || filters.socialStyle || filters.year) && (
             <button
               className="filter-clear"
@@ -275,7 +327,7 @@ export default function Browse() {
           background: 'var(--border)',
           border: '1px solid var(--border)'
         }}>
-          {filteredMembers.map(member => (
+          {sortedMembers.map(member => (
             <div
               key={member._id}
               onClick={() => navigate(`/profile/${member._id}`)}
@@ -288,37 +340,45 @@ export default function Browse() {
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--bg)'}
             >
-              {/* Profile pic */}
+              {/* Profile pic + match score */}
               <div style={{
-                width: '48px',
-                height: '48px',
-                border: '1px solid var(--border)',
-                overflow: 'hidden',
-                marginBottom: '16px',
-                background: 'var(--bg-secondary)',
-                flexShrink: 0
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '16px'
               }}>
-                {member.profile?.profilePic ? (
-                  <img
-                    src={member.profile.profilePic}
-                    alt={member.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 800,
-                    fontSize: '18px',
-                    color: 'var(--text-muted)'
-                  }}>
-                    {member.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  border: '1px solid var(--border)',
+                  overflow: 'hidden',
+                  background: 'var(--bg-secondary)',
+                  flexShrink: 0
+                }}>
+                  {member.profile?.profilePic ? (
+                    <img
+                      src={member.profile.profilePic}
+                      alt={member.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 800,
+                      fontSize: '18px',
+                      color: 'var(--text-muted)'
+                    }}>
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <CompatibilityBadge compatibility={member.compatibility} />
               </div>
 
               {/* Name + year */}
@@ -371,6 +431,11 @@ export default function Browse() {
                 )}
                 {member.profile?.studyHabits && (
                   <span className="tag">{member.profile.studyHabits}</span>
+                )}
+                {member.compatibility?.sharedHobbies?.length > 0 && (
+                  <span className="tag tag-accent">
+                    {member.compatibility.sharedHobbies.length} shared
+                  </span>
                 )}
               </div>
 

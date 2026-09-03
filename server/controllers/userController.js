@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { computeCompatibility } = require('../utils/compatibility');
 
 const ENUM_FIELDS = ['sleepSchedule', 'studyHabits', 'socialStyle'];
 
@@ -40,8 +41,19 @@ exports.updateMe = async (req, res) => {
 
 exports.getHostelMembers = async (req, res) => {
   try {
-    const users = await User.find({ hostel: req.user.hostel }).select('-password');
-    res.json(users);
+    const [me, users] = await Promise.all([
+      User.findById(req.user.id).select('profile').lean(),
+      User.find({ hostel: req.user.hostel }).select('-password').lean()
+    ]);
+
+    const members = users.map((member) => {
+      if (member._id.toString() === req.user.id) return member;
+      // The breakdown is only shown on the profile page, so keep the list light
+      const { breakdown, ...compatibility } = computeCompatibility(me?.profile, member.profile);
+      return { ...member, compatibility };
+    });
+
+    res.json(members);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -49,7 +61,7 @@ exports.getHostelMembers = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id).select('-password').lean();
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -57,7 +69,13 @@ exports.getUserById = async (req, res) => {
     if (user.hostel !== req.user.hostel) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    res.json(user);
+    // Nothing to compare against on your own profile
+    if (user._id.toString() === req.user.id) {
+      return res.json(user);
+    }
+
+    const me = await User.findById(req.user.id).select('profile').lean();
+    res.json({ ...user, compatibility: computeCompatibility(me?.profile, user.profile) });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
