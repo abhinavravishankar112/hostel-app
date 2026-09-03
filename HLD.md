@@ -107,6 +107,12 @@ HostelMatch is a full-stack web application with a **React (Vite) SPA frontend**
 | `/api/matches` | matchController | Request lifecycle + Unmatch |
 | `/api/messages` | messages route | Fetch chat history |
 
+**Shared Server Modules:**
+
+| Module | Purpose |
+|---|---|
+| `utils/compatibility.js` | Pure scoring function shared by the directory and profile endpoints |
+
 ### 3.3 Database (MongoDB Atlas)
 
 | Collection | Purpose |
@@ -215,7 +221,47 @@ State Machine:
 
 ---
 
-## 7. Deployment Architecture
+## 7. Compatibility Scoring
+
+Compatibility is computed **server-side** by a single pure module, `server/utils/compatibility.js`, which both student-facing read endpoints call. Keeping the rules out of the controllers means they are defined once, are unit-testable without a database, and cannot drift between the directory view and the profile view.
+
+```
+   GET /api/users/hostel                    GET /api/users/:id
+           │                                         │
+   caller's profile +                        caller's profile +
+   every hostel member                       one target profile
+           │                                         │
+           └────────────────┬────────────────────────┘
+                            ▼
+         ┌────────────────────────────────────────────┐
+         │        utils/compatibility.js               │
+         │   computeCompatibility(mine, theirs)        │
+         │                                             │
+         │   1. score each dimension 0..1              │
+         │   2. skip any dimension either side         │
+         │      left blank                             │
+         │   3. renormalize over the weights           │
+         │      actually used                          │
+         └────────────────────────────────────────────┘
+                            │
+           ┌────────────────┴────────────────┐
+           ▼                                 ▼
+   { score, confidence,              ...plus breakdown[]
+     sharedHobbies }                 (per-dimension reasons)
+
+   breakdown stripped from the       full explanation kept for
+   list to keep it small             the profile page
+```
+
+**Dimensions and weights** — sleep schedule 30, study habits 25, social style 20, shared interests 15, year 10. The weights total 100, so the result reads directly as a percentage. Sleep schedule dominates because it is the most common cause of real roommate conflict; shared interests are deliberately a minority of the score, since living well with someone is not the same as sharing their hobbies.
+
+**Handling incomplete profiles.** Most students fill in their profile gradually, so the common case is comparing against partial data. Rather than treating a blank field as a mismatch, the scorer skips any dimension either side has left empty and redistributes its weight across the rest. The result is an honest score over what is actually known, plus a `confidence` value reporting how much of the profile that covered. Two students with nothing comparable score `null`, not `0` — the difference between "we cannot say" and "you are incompatible" matters, and the UI renders them differently.
+
+**Explainability over accuracy.** The score ships with a per-dimension `breakdown` carrying a plain-language reason for each contribution ("You're both night owls", "Quiet studying vs group studying"). A number a student cannot interrogate will not be trusted with a decision as consequential as who they live with, so the reasoning is treated as part of the feature rather than as debug output.
+
+---
+
+## 8. Deployment Architecture
 
 ```
 ┌─────────────────────┐         ┌─────────────────────┐
@@ -239,7 +285,7 @@ State Machine:
 
 ---
 
-## 8. Key Design Decisions & Rationale
+## 9. Key Design Decisions & Rationale
 
 | Decision | Rationale |
 |---|---|
@@ -250,6 +296,11 @@ State Machine:
 | **Cloudinary unsigned preset** | Simplifies client-side uploads without exposing API secrets; suitable for profile pictures. |
 | **React Context for Auth/Socket** | Avoids prop drilling for globally needed auth state and socket instance; appropriate for app size. |
 | **1:1 match constraint** | Mirrors real-world hostel room capacity (typically 2 students per room). |
+| **Deterministic weighted scoring, not ML** | No historical match-outcome data exists to train on, and a hand-weighted model is explainable to students and tunable by hand. Learned weights are a v2.1 candidate once real outcomes accumulate. |
+| **Scoring on the server** | One definition of the rules, shared by two endpoints, testable without a browser and not tamperable from the client. |
+| **Redistributing weight for blank fields** | Incomplete profiles are the norm early on; penalising them would make every score meaningless at launch. Confidence carries that uncertainty instead. |
+| **`null` score rather than `0`** | "Not enough data" and "incompatible" are different claims. Collapsing them would misrepresent students who simply have not filled in a profile yet. |
+| **`breakdown` stripped from the list response** | The directory renders only the headline number; sending five reason strings per member would inflate the payload for data the page never shows. |
 
 ---
 
