@@ -12,6 +12,7 @@ A roommate-matching platform for university hostel students. Browse profiles of 
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [API Reference](#api-reference)
+- [Compatibility Scoring](#compatibility-scoring)
 - [Project Structure](#project-structure)
 - [Roadmap](#roadmap)
 
@@ -33,6 +34,7 @@ Currently built for a single university, with plans to expand to more hostels ov
 - 🏘️ **Hostel Directory** — Browse every student in your hostel regardless of their match status.
 - 💌 **Roommate Requests** — Send, accept, reject and cancel roommate requests.
 - ✅ **Match System** — Once a request is accepted, both students are marked as matched. Button states on the browse page reflect the current match status of every student.
+- 🎯 **Compatibility Scoring** — Every student in your hostel is scored against your profile on sleep schedule, study habits, social style, shared hobbies and year. The directory sorts by best match, and each profile shows a dimension-by-dimension breakdown explaining the number.
 - 💬 **Real-time Chat** — In-app messaging between matched students using WebSockets.
 - 🔒 **Protected Routes** — All pages except login and register require authentication.
 
@@ -158,6 +160,8 @@ Client will start at `http://localhost:5173`
 | GET | `/api/users/hostel` | Get all students in your hostel | ✅ |
 | GET | `/api/users/:id` | Get a specific student's profile | ✅ |
 
+> `/api/users/hostel` and `/api/users/:id` both attach a `compatibility` object scoring that student against you. The list response carries `{ score, confidence, sharedHobbies }`; the single-profile response adds the full `breakdown`. Your own record comes back without one.
+
 ### Matches
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
@@ -167,6 +171,26 @@ Client will start at `http://localhost:5173`
 | DELETE | `/api/matches/cancel/:id` | Cancel a request you sent | ✅ |
 | GET | `/api/matches/requests` | View all incoming requests | ✅ |
 | GET | `/api/matches/sent` | View all sent pending requests | ✅ |
+
+---
+
+## Compatibility Scoring
+
+Every pair of students is scored 0–100 against five weighted dimensions:
+
+| Dimension | Weight | Why it matters |
+|---|---|---|
+| Sleep schedule | 30% | The most common source of real roommate conflict |
+| Study habits | 25% | Determines how the room gets used during term |
+| Social style | 20% | Drives guests, noise and shared downtime |
+| Shared interests | 15% | Predicts friendship rather than mere tolerance |
+| Year | 10% | Proxy for similar timetables and exam periods |
+
+`flexible` and `mixed` answers part-match anything rather than counting as a clash, and three shared hobbies earn full marks on that dimension.
+
+**Incomplete profiles don't get punished.** A dimension is only scored when *both* students have filled it in; the weights of the rest are redistributed, so a partial profile lowers the reported *confidence* instead of dragging the score down. When two students have nothing comparable at all, the score is `null` rather than `0` — "we can't tell yet" and "you're incompatible" are different claims, and the UI shows them differently.
+
+Scoring runs server-side in `server/utils/compatibility.js` so the rules live in one place, stay testable without a browser, and can't be tampered with by the client.
 
 ---
 
@@ -191,6 +215,8 @@ hostel-app/
 │   │   ├── users.js
 │   │   ├── messages.js
 │   │   └── matches.js
+│   ├── utils/
+│   │   └── compatibility.js
 │   └── server.js
 │
 └── client/
@@ -198,6 +224,7 @@ hostel-app/
         ├── api/
         │   └── axios.js
         ├── components/
+        │   ├── CompatibilityBadge.jsx
         │   ├── ImageUpload.jsx
         │   ├── Navbar.jsx
         │   ├── Navbar.css
@@ -207,6 +234,8 @@ hostel-app/
         ├── context/
         │   ├── AuthContext.jsx
         │   └── SocketContext.jsx
+        ├── utils/
+        │   └── compatibility.js
         ├── pages/
         │   ├── Landing.jsx / Landing.css
         │   ├── Login.jsx / Auth.css
@@ -228,6 +257,7 @@ hostel-app/
 
 - [x] Profile picture upload
 - [x] In-app messaging between matched students
+- [x] Compatibility scoring with best-match sorting
 - [ ] Add more hostels within the university
 - [ ] Notifications for incoming requests
 - [x] Mobile responsive design
